@@ -1,10 +1,15 @@
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 import psycopg
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.errors import install_error_handlers
+from app.api.routes import router
 from app.config import get_settings
+from app.repositories.models import SCHEMA_VERSION
 
 
 @asynccontextmanager
@@ -13,7 +18,31 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="售后工单系统", version="0.0.1", lifespan=lifespan)
+app = FastAPI(title="CasePilot 售后工单系统", version="0.0.1", lifespan=lifespan)
+
+
+class ConfiguredCORS(CORSMiddleware):
+    def __init__(self, app):
+        super().__init__(
+            app, allow_origins=get_settings().allowed_origins,
+            allow_credentials=True, allow_methods=["GET", "POST", "PATCH"],
+            allow_headers=["Content-Type", "X-CSRF-Token", "Idempotency-Key"],
+            expose_headers=["X-Request-ID"],
+        )
+
+
+app.add_middleware(ConfiguredCORS)
+app.include_router(router)
+install_error_handlers(app)
+
+
+@app.middleware("http")
+async def request_context(request, call_next):
+    request.state.request_id = str(uuid4())
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request.state.request_id
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/health/live")
@@ -30,7 +59,9 @@ def ready():
             vector = conn.execute(
                 "SELECT extversion FROM pg_extension WHERE extname = 'vector'"
             ).fetchone()
-        if vector is None:
+            schema_exists = conn.execute("SELECT to_regclass('business.alembic_version')").fetchone()[0]
+            version = conn.execute("SELECT version_num FROM business.alembic_version").fetchone() if schema_exists else None
+        if vector is None or version is None or version[0] != SCHEMA_VERSION:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
     except psycopg.Error:
         return JSONResponse(status_code=503, content={"status": "not_ready"})

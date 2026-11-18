@@ -7,3 +7,4 @@
 - 使用项目 `.venv`、npm 锁文件和固定摘要的 PostgreSQL 17/pgvector 镜像，不修改全局环境。
 - 默认 Mock；不复制旧脚本中的凭据，不连接生产，不提交 `.env`、日志、附件或数据库数据。
 - 业务表由 Alembic 管理，检查点表由官方 Saver 串行初始化；不得以 SQLite 代替 PostgreSQL 验收。
+- 系统名称为 CasePilot，远程仓库固定为 `https://github.com/crush-game/CasePilot.git`；目录暂保留 `aftersales-agent`。

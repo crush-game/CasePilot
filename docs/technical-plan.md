@@ -501,6 +501,7 @@ run 状态固定为 queued/running/paused/succeeded/failed/superseded；人工�
 | 表 | 核心字段 | 必要约束／索引 |
 |---|---|---|
 | `app_users` | id、login、password_hash、role、active | login 唯一；账号不存明文口令 |
+| `auth_sessions` | user_id、token_hash、csrf_hash、expires_at | 随机 Cookie 会话；只存 Token/CSRF 摘要；过期或停用账号拒绝访问 |
 | `tickets` | id、ticket_no、source、customer_email、feedback_text、device_ref、occurred_at、status、priority、assignee_id、version、active_run_id、created_at | ticket_no 唯一；status/assignee/created_at 联合检索 |
 | `ticket_facts` | ticket_id、field、value_json、source_type、source_ref、fact_version、actor_id | 同一字段保留历史；当前值按版本取得 |
 | `runs` | id、ticket_id、thread_id、graph_version、case_version、status、checkpoint_ref、budget_json、stop_reason | thread_id 唯一；每工单至多一个 queued/running/paused 的活动 run，以部分唯一索引实现 |
@@ -533,6 +534,7 @@ run 状态固定为 queued/running/paused/succeeded/failed/superseded；人工�
 | `POST /artifacts` | multipart 文件 | 返回 artifact_id、校验状态；未关联附件按保留期清理 |
 | `POST /tickets` | 反馈、邮箱、可选设备／时间／artifact_ids；Idempotency-Key | 同事务创建 ticket/run/task/event，返回 202 与 ticket_id/run_id |
 | `GET /tickets`、`GET /tickets/{id}` | 筛选／详情 | 详情返回状态版本、活动 run、最新事件游标 |
+| `PATCH /tickets/{id}` | action_id、expected_version、priority／assignee_id | P01 只允许更新排队工单的元数据；版本递增、同步 queued run 与快照、追加事件及审计；旧版本返回 409 |
 | `GET /tickets/{id}/events?after_id=...` | 时间线 | 返回节点与业务事件，不泄露内部原始提示词与完整日志 |
 | `GET /runs/{id}` | 运行详情 | 预算、停止原因、节点、子任务与检查点摘要 |
 | `GET /artifacts/{id}`、`GET /evidence/{id}` | 授权引用 | 校验访问范围，返回脱敏内容或下载响应，不返回本地绝对路径 |
@@ -550,6 +552,8 @@ run 状态固定为 queued/running/paused/succeeded/failed/superseded；人工�
 统一失败响应包含 `request_id`、`error.code`、中文 message 和可公开的 details。区分 401/403、404、409、422、429、503；对外响应不包含数据库栈、模型密钥或原始企业接口凭据。模型内部决策里的 suggested_action 不能直接当作 API 路径执行。
 
 认证先完成本地账号，不集成企业 SSO；创建账号与密码在本地初始化时输入，仓库不写演示明文口令。Cookie 会话配合写操作 CSRF 校验，前后端开发跨源配置只开放指定源。第一阶段权限以业务处理／知识管理员为主；消费者不能复用内部管理接口。
+
+P01 契约细化：业务表使用 `business` schema，检查点仍独立使用官方 Saver；会话默认 8 小时，Cookie 为 httpOnly＋SameSite=Lax，CSRF Token 在登录响应返回，后续写操作放在 `X-CSRF-Token`。业务处理角色为 `business`，知识管理角色为 `knowledge_admin`；首版业务账号共同处理同一内部工单池，尚无多租户权限。工单列表支持 status/priority/assignee_id 筛选和稳定的时间＋UUID 游标；时间线按全局 event_id 增量查询。发生时间同时保存原始时区表示和 minute/second 精度。P01 未提供附件上传，非空 artifact_ids 明确拒绝，不静默忽略。后续数据表随所属 P 阶段新增迁移，不预建知识、经验与渠道功能。
 
 ## 16. LangGraph、状态一致性与恢复协议
 
