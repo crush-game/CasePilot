@@ -1,0 +1,23 @@
+name: aftersales-agent
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.2-pg17@sha256:e04af45eb526378554a24ed05b37d9ea56fd623feca9adf264d4f47d875c9a93
+    platform: linux/amd64
+    environment:
+      POSTGRES_USER: aftersales
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?先运行 scripts/bootstrap.ps1 生成本地配置}
+      POSTGRES_DB: aftersales
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aftersales -d aftersales"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  postgres_data:
