@@ -1,21 +1,35 @@
-<template>
-  <main>
-    <header>
-      <h1>售后工单工作台</h1>
-      <el-tag type="info">模拟数据</el-tag>
-    </header>
-    <el-card>
-      <h2>工单处理</h2>
-      <el-alert title="工单功能尚未开放" type="info" :closable="false" />
-      <p>后续将在这里创建工单、查看调查过程并处理人工待办。</p>
-    </el-card>
-  </main>
-</template>
+<script setup lang="ts">
+import { ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { useSession } from './stores/session'
+import { router } from './router'
+import { errorMessage } from './api/client'
+import Icon from './components/Icon.vue'
 
-<style scoped>
-main { max-width: 1080px; margin: 48px auto; padding: 0 24px; color: #243040; font-family: system-ui, sans-serif; }
-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-h1 { font-size: 26px; }
-h2 { margin-top: 0; font-size: 20px; }
-p { line-height: 1.7; color: #586579; }
-</style>
+const route = useRoute()
+const session = useSession()
+const logoutError = ref('')
+const loggingOut = ref(false)
+async function logout() {
+  loggingOut.value = true
+  try { await session.logout(); await router.replace('/login') }
+  catch (error) { logoutError.value = errorMessage(error) }
+  finally { loggingOut.value = false }
+}
+</script>
+
+<template>
+  <router-view v-if="route.path === '/login'" />
+  <div v-else class="app-shell">
+    <a class="skip-link" href="#main-content">跳转到主要内容</a>
+    <aside class="sidebar">
+      <router-link to="/tickets" class="brand"><span class="brand-mark"><Icon name="layers" /></span>CasePilot<span class="brand-dot">.</span></router-link>
+      <div class="workspace-label">售后处理工作台</div>
+      <nav aria-label="主导航"><div class="nav-caption">工作空间</div><router-link to="/tickets" :class="{ active: route.path.startsWith('/tickets') }"><Icon name="inbox" />工单队列</router-link><router-link to="/human-tasks" :class="{ active: route.path === '/human-tasks' }"><Icon name="users" />人工待办</router-link></nav>
+      <div class="sidebar-bottom"><span class="environment-dot"></span>模拟数据环境<p>处理过程保留，关键结果由人工确认。</p></div>
+    </aside>
+    <div class="workspace"><header class="topbar"><span class="topbar-label">客户服务 / {{ route.path === '/human-tasks' ? '人工待办' : '工单管理' }}</span><div class="account"><el-tag type="info" effect="plain" round>模拟数据</el-tag><span class="avatar">{{ session.user?.login.slice(0, 1).toUpperCase() }}</span><span class="account-name">{{ session.user?.login }}</span><el-button text :loading="loggingOut" @click="logout">退出登录</el-button></div></header>
+      <main id="main-content" class="main-content"><el-alert v-if="logoutError" :title="logoutError" type="error" :closable="false" /><section v-if="session.user?.role !== 'business'" class="panel permission-panel"><Icon name="shield" /><h1>当前账号没有工单处理权限</h1><p>请使用业务处理账号登录。</p><el-button @click="logout">切换账号</el-button></section><router-view v-else :key="route.path" /></main>
+    </div>
+  </div>
+</template>

@@ -4,7 +4,7 @@
 
 2026-11-18 用户授权从 P00 开始实现。每个 P 单元全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 各完成后 push。本阶段未通过验收，不进入下一阶段。用户随后确定仓库为 [crush-game/CasePilot](https://github.com/crush-game/CasePilot)，本地目录暂保留 aftersales-agent。
 
-当前进度：P00～P02 验收通过，尚未开始 P03；未到大阶段 push 节点。
+当前进度：P00～P03 验收通过，尚未开始 P04；未到大阶段 push 节点。
 
 ## P00：工程隔离、依赖兼容与框架试验
 
@@ -152,3 +152,45 @@ P01 按技术方案实现业务数据、Alembic 迁移、账号和工单 API，�
 - 对账覆盖该协议中“持久检查点已写、任务尚未提交业务投影”等到期运行任务；不承诺恢复数据库丢失、人工删表或存储整体不可用时成功处理。
 - 没有外部发送接口；contacted 来自业务人员显式记录。结案不自动生成成功经验，经验候选在 P09 实施。
 - 下一单元为 P03，当前停止在 P02 验收和中文提交边界，不 push。
+
+## P03：前端最小工作台
+
+日期：2026-11-19。验收结论：通过。基于已有未提交 P03 草稿补齐并验证，未覆盖或重置这批改动；本阶段不进入 P04。
+
+### 修改与交付
+
+- `frontend/src/views/`：登录、列表/筛选/分页、新建、详情时间线与来源抽屉、人工池；人工操作覆盖认领、补充恢复、审核、联系记录、重新调查、结案。
+- `frontend/src/components/`、`App.vue`、`style.css`、`public/favicon.svg`：沿用草稿布局，补齐深色侧栏与浅色内容区、表单/表格/状态/反馈样式、375px/横屏适配、减少动画偏好和本地 SVG。未更换 Vue/Element Plus 栈，未使用外部字体或生产数据。
+- `frontend/src/api/`、`stores/`、`router/`、`composables/`、`utils/`：Cookie/CSRF 会话、恢复与过期提示、错误/15 秒超时、稳定动作标识、前台/后台轮询、离线取消与重连、离开页面停止。409 保留草稿并阻止静默覆盖，未确认结果时不随轮询改动写版本。
+- `backend/app/api/routes.py`、`schemas.py`：详情增加最新事实来源和 latest_run_id；终态仍返回最近 run。响应 OpenAPI 将序列化默认字段声明为必有字段，匹配实际响应；没有业务 schema/迁移变化。
+- `scripts/export_openapi.py`、`frontend/scripts/generate-api.mjs`、`frontend/openapi.json`、`src/types/`：自动生成 API 类型与一致性检查，避免手写接口类型漂移。
+- `frontend/tests/unit/`、`frontend/scripts/e2e.mjs`、`scripts/browser_fixture.py`：轮询与请求单测、独立测试服务和实际浏览器验收；后端增加 `test_p03.py` 核对新响应。
+- `package.json/package-lock.json`：保留草稿已选择的 Vue Router 5.5.1、Pinia 4.1.0、Vitest 5.1.1、Playwright 1.65.1、openapi-typescript 7.13.0，并提供 api:generate/api:check/test:unit/test:e2e。
+- README、技术方案与工作区父级技术方案同步启动、契约和验收方式；截图/临时浏览器文件加入 Git 忽略。
+
+### 实际验证
+
+| 命令或场景 | 结果 |
+|---|---|
+| `npm run api:generate`、`npm run api:check`（frontend） | 类型已生成；与当前后端 OpenAPI 一致 |
+| `npm run typecheck` | 通过，包含页面与单元测试 TypeScript |
+| `npm run test:unit` | 7 passed；覆盖动作幂等标识、CSRF/会话失效、超时/主动取消、前后台轮询、断网/重连、取消旧请求和停止轮询 |
+| `npm run build` | 类型检查与 Vite 生产构建通过；按页面拆分产物 |
+| `npm run test:e2e` | 9 个真实 Chrome 场景通过，无未捕获浏览器脚本错误 |
+| `.\.venv\Scripts\python.exe scripts/verify_backend.py` | 45 项既有后端回归通过，100.26 秒 |
+| 加载 `.env` 后单独执行 `pytest backend/tests/integration/test_p03.py -q` | 2 passed / 2.79 秒；终态 latest_run_id 与人工事实来源保留，重新调查后仅返回字段最新事实 |
+
+后端共 47 个不同用例通过（45 项既有回归＋2 项新增响应契约）。浏览器 9 场景为：登录/错误密码/路由保护/刷新；分页筛选及离开页面停止轮询；表单校验与重复提交；人工池/认领/离线草稿；恢复/重连/增量时间线/来源抽屉；409 草稿保留后手动刷新重试；审核/联系/结案/终态轨迹；375px/横屏/减少动画；会话失效提示与知识角色权限。
+
+已实际查看桌面详情、小屏详情及 CLI 登录页截图。报告、截图位于 `output/playwright/`，仅含模拟数据，不进入 Git。验收服务使用 18003/15173，执行完毕关闭自己创建的服务和浏览器；未连接生产。
+
+开发中修复类型可选性/数组兼容问题，以及首次恢复时过期提示被路由守卫丢弃的问题。首轮浏览器脚本曾把登录页 redirect 参数误判成已登录 URL，已改为精确路径判断；不将脚本误判算作业务失败。
+
+### 边界
+
+- 工作台对接 P02 固定 Mock 图，未接真实模型、真实知识或日志；来源抽屉明确显示模拟引用，不称为已验证业务证据。
+- 修改、接管、重新调查等前端入口沿用后端权限和版本限制。浏览器主闭环已验收，P02 的运行停止、断连、锁和崩溃恢复仍由后端回归覆盖。
+- 没有账号自助注册和外部发送接口；本地账号需按 README 创建。日常使用需分别启动 API、Worker、reconcile 和前端。
+- 草稿保留限当前页，不承诺重新加载/退出登录后保留。新标签页没有 CSRF 时需要登录，Cookie 令牌不在 JS 中读取。
+- `ui-ux-pro-max` 附属搜索脚本在当前安装中是失效文本指针；按 SKILL 的布局/可访问性规则实施，并通过实际浏览器截图检查。未声称搜索脚本成功执行。
+- P00 已记录的开发依赖审计问题未在本阶段宣称修复。本轮仅完成 P03、中文提交，不 push；下一单元为 P04。

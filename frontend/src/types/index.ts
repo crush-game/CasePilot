@@ -1,0 +1,17 @@
+import type { components } from './openapi'
+
+export type User = components['schemas']['UserView']
+export type Ticket = components['schemas']['TicketView']
+export type TicketDetail = components['schemas']['TicketDetail']
+export type TicketList = components['schemas']['TicketList']
+export type TicketCreate = components['schemas']['TicketCreate']
+export type TicketCreated = components['schemas']['TicketCreated']
+export type HumanTask = components['schemas']['HumanTaskView']
+export type HumanTaskList = components['schemas']['HumanTaskList']
+export type Run = components['schemas']['RunView']
+export type Events = components['schemas']['EventList']
+export type TicketEvent = components['schemas']['EventView']
+export type ActionResult = components['schemas']['ActionResult']
+export type LoginResult = components['schemas']['LoginResult']
+export type TicketStatus = components['schemas']['TicketStatus']
+export type Priority = components['schemas']['Priority']

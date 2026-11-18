@@ -13,3 +13,5 @@ frontend/dist/
 data/
 artifacts/
 *.log
+output/playwright/
+frontend/.playwright-cli/

@@ -40,7 +40,7 @@ Set-Location frontend
 npm run dev
 ```
 
-`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展、业务迁移版本和检查点表。前端仍为 P00 骨架；目前工单闭环通过 API 提供。模型和企业数据只能配置为 `mock`，不请求外部模型或生产业务接口。
+`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展、业务迁移版本和检查点表。前端工作台默认访问 `http://127.0.0.1:5173`，与 API、Worker、对账循环配合即可处理工单。模型和企业数据只能配置为 `mock`，不请求外部模型或生产业务接口。
 
 另开两个终端分别启动 Worker 和独立对账循环：
 
@@ -99,6 +99,32 @@ P01 尚无附件上传，`artifact_ids` 只接受空数组。`occurred_at` 必�
 Mock 每轮默认最长 300 秒、24 个完成节点，最多 5 个自动轮次。等待人工不计入下一轮时间；每次恢复建立新预算轮次并保留历史。预算耗尽、固定工具失败或框架异常都会转人工。检查点缺失或图版本不兼容的待办禁止直接 resume，可人工结案或重新调查。
 
 运行回归：`.\.venv\Scripts\python.exe scripts/verify_backend.py`。P02 测试会启动独立 Worker 子进程并真正强制终止，覆盖认领后、工具写入后、检查点中断/完成后、resume 已消费后的故障点；故障注入仅允许本机独立测试库。
+
+## P03 工作台与前端验收
+
+页面包含登录、工单列表、新建、详情时间线、人工待办和结果确认。业务账号可认领、补充恢复、审核/修改回复、记录已联系客户、重新调查及明确结案；知识管理账号仅显示当前无工单处理权限。界面固定标明模拟数据，不把审核通过显示成已解决，也不显示未实际发送的消息。
+
+详情保留当前事实来源与最近一次 run；终态工单仍可查看原调查轨迹。页面每约 2 秒刷新，隐藏后退避到 30 秒，离开页面停止。断网时保留已显示数据、暂停写操作，恢复后按事件游标补取。人工输入不会被后台轮询覆盖；409 时保留当前页草稿，显式刷新状态后再提交。草稿仅在当前页内存中保留，不承诺刷新/退出登录后保留。
+
+会话使用后端 httpOnly Cookie，CSRF Token 仅保存于当前标签页 sessionStorage。刷新可恢复同一会话；会话失效跳回登录并显示提示。新标签页未携带 CSRF 时需要重新登录。请求默认 15 秒超时，结果未知时沿用相同操作标识重试，或先刷新确认；不自动将写操作改成新的请求。
+
+API 类型从后端 OpenAPI 生成；修改公开响应后运行生成命令。详情响应增加 latest_run_id 和当前 facts，无数据库迁移变化。
+
+```powershell
+Set-Location frontend
+npm run api:generate
+npm run api:check
+npm run typecheck
+npm run test:unit
+npm run build
+npm run test:e2e
+```
+
+`test:e2e` 用 Playwright 启动实际浏览器、独立 API 18003 和前端 15173；仅操作配置中的本机 `aftersales_test`，生成随机模拟账号和列表工单，结束后关闭自行创建的服务。需 PostgreSQL 测试库可用、Python 虚拟环境已安装依赖，并保证两个端口空闲。Windows 自动优先使用已安装 Chrome/Edge；也可用 `CASEPILOT_BROWSER_CHANNEL` 指定已安装通道。其他环境未安装 Playwright 浏览器时，先运行 `npx playwright install chromium`。
+
+浏览器报告和截图保存在 `output/playwright/`（Git 忽略），包括 workbench-list.png、workbench-detail.png、workbench-mobile.png 和 e2e-report.json；不保存测试口令、Cookie 或浏览器认证状态。测试账号和模拟工单留在独立测试库供排查，不删除或清空开发数据。
+
+前端锁定 Vue Router、Pinia、Vitest、Playwright 和 OpenAPI 生成器。页面采用现有 Vue/Element Plus 栈，系统字体与本地 SVG，不依赖外部字体服务。后端回归入口仍为 `scripts/verify_backend.py`。
 
 ## 提交与阶段
 

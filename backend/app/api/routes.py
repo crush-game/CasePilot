@@ -12,7 +12,7 @@ from app.api.schemas import (
 from app.config import get_settings
 from app.domain.enums import Priority, TicketStatus
 from app.domain.errors import AppError
-from app.repositories.models import AuthSession, HumanTask, NodeRun, Run, TicketEvent
+from app.repositories.models import AuthSession, HumanTask, NodeRun, Run, TicketEvent, TicketFact
 from app.services import auth, tickets
 
 
@@ -64,10 +64,18 @@ def get_ticket(ticket_id: UUID, user: BusinessUser, db: Database):
     ticket = tickets.get_ticket(db, ticket_id)
     latest = db.scalar(select(func.max(TicketEvent.id)).where(TicketEvent.ticket_id == ticket_id)) or 0
     human_id = db.scalar(select(HumanTask.id).where(HumanTask.ticket_id == ticket_id, HumanTask.status.in_(["unclaimed", "claimed", "resuming"])))
-    run = db.get(Run, ticket.active_run_id) if ticket.active_run_id else None
+    run = db.get(Run, ticket.active_run_id) if ticket.active_run_id else db.scalar(
+        select(Run).where(Run.ticket_id == ticket_id).order_by(Run.created_at.desc(), Run.id.desc()).limit(1)
+    )
+    fact_rows = db.scalars(select(TicketFact).where(TicketFact.ticket_id == ticket_id)
+                           .order_by(TicketFact.field, TicketFact.fact_version.desc()))
+    facts = {}
+    for fact in fact_rows:
+        facts.setdefault(fact.field, fact)
     return TicketDetail(**TicketView.model_validate(ticket).model_dump(), latest_event_id=latest,
                         solution_json=ticket.solution_json, result_json=ticket.result_json,
-                        human_task_id=human_id, cancel_requested=run.cancel_requested if run else False)
+                        human_task_id=human_id, cancel_requested=run.cancel_requested if run else False,
+                        latest_run_id=run.id if run else None, facts=list(facts.values()))
 
 
 @router.patch("/tickets/{ticket_id}", response_model=TicketView)

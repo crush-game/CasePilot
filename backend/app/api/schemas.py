@@ -105,12 +105,23 @@ class TicketView(BaseModel):
     updated_at: datetime
 
 
+class FactView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    field: str
+    value_json: dict
+    source_type: str
+    fact_version: int
+
+
 class TicketDetail(TicketView):
+    model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
     latest_event_id: int
     solution_json: dict = Field(default_factory=dict)
     result_json: dict = Field(default_factory=dict)
     human_task_id: UUID | None = None
     cancel_requested: bool = False
+    latest_run_id: UUID | None = None
+    facts: list[FactView] = Field(default_factory=list)
 
 
 class TicketList(BaseModel):
