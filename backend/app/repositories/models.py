@@ -8,11 +8,11 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.domain.enums import Priority, Role, RunStatus, TaskStatus, TicketStatus
+from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskStatus, TicketStatus
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0001_business"
+SCHEMA_VERSION = "0002_runtime"
 
 
 def choices(column, enum):
@@ -86,6 +86,8 @@ class Ticket(Base):
     active_run_id: Mapped[UUID | None] = mapped_column()
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    solution_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
+    result_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
 
 
 class Run(Base):
@@ -107,6 +109,7 @@ class Run(Base):
     checkpoint_ref: Mapped[dict | None] = mapped_column(JSONB)
     budget_json: Mapped[dict] = mapped_column(JSONB, default=dict)
     stop_reason: Mapped[str | None] = mapped_column(String(128))
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -128,6 +131,7 @@ class ExecutionTask(Base):
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     lease_token: Mapped[UUID | None] = mapped_column()
+    payload_json: Mapped[dict] = mapped_column(JSONB, default=dict, server_default=text("'{}'::jsonb"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -194,4 +198,73 @@ class AuditEvent(Base):
     operation: Mapped[str] = mapped_column(String(64))
     patch: Mapped[dict] = mapped_column(JSONB)
     result: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class HumanTask(Base):
+    __tablename__ = "human_tasks"
+    __table_args__ = (
+        UniqueConstraint("run_id", "pause_key", name="uq_human_tasks_pause"),
+        CheckConstraint(choices("status", HumanTaskStatus), name="status"),
+        Index("uq_human_tasks_open_ticket", "ticket_id", unique=True,
+              postgresql_where=text("status IN ('unclaimed','claimed','resuming')")),
+        Index("ix_human_tasks_status_created", "status", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    ticket_id: Mapped[UUID] = mapped_column(ForeignKey("business.tickets.id"))
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("business.runs.id"))
+    pause_key: Mapped[str] = mapped_column(String(128))
+    reason_code: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default=HumanTaskStatus.UNCLAIMED)
+    assignee_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.app_users.id"))
+    checkpoint_ref: Mapped[dict] = mapped_column(JSONB)
+    payload_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class HumanAction(Base):
+    __tablename__ = "human_actions"
+
+    action_id: Mapped[UUID] = mapped_column(primary_key=True)
+    human_task_id: Mapped[UUID] = mapped_column(ForeignKey("business.human_tasks.id"))
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("business.runs.id"), index=True)
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    expected_version: Mapped[int] = mapped_column(Integer)
+    request_json: Mapped[dict] = mapped_column(JSONB)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consumed_checkpoint: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class NodeRun(Base):
+    __tablename__ = "node_runs"
+    __table_args__ = (UniqueConstraint("run_id", "logical_step_id", "attempt", name="uq_node_runs_step"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("business.runs.id"), index=True)
+    node_name: Mapped[str] = mapped_column(String(64))
+    logical_step_id: Mapped[str] = mapped_column(String(160))
+    attempt: Mapped[int] = mapped_column(Integer, default=1)
+    input_refs: Mapped[dict] = mapped_column(JSONB, default=dict)
+    output_refs: Mapped[dict] = mapped_column(JSONB, default=dict)
+    model_version: Mapped[str | None] = mapped_column(String(64))
+    usage_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    status: Mapped[str] = mapped_column(String(32))
+    duration_ms: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ToolExecution(Base):
+    __tablename__ = "tool_executions"
+    __table_args__ = (UniqueConstraint("run_id", "logical_action_id", name="uq_tool_executions_action"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column(ForeignKey("business.runs.id"))
+    logical_action_id: Mapped[UUID] = mapped_column()
+    tool_name: Mapped[str] = mapped_column(String(64))
+    args_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32))
+    result_refs: Mapped[dict] = mapped_column(JSONB)
+    error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

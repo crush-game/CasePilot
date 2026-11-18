@@ -38,3 +38,11 @@ class TaskStatus(StrEnum):
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
+
+
+class HumanTaskStatus(StrEnum):
+    UNCLAIMED = "unclaimed"
+    CLAIMED = "claimed"
+    RESUMING = "resuming"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"

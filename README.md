@@ -14,6 +14,7 @@ pwsh -File scripts/bootstrap.ps1
 docker compose config --quiet
 docker compose up -d --wait
 .\.venv\Scripts\python.exe -m app.manage migrate
+.\.venv\Scripts\python.exe -m app.workers.runtime setup
 .\.venv\Scripts\python.exe -m app.manage create-user --login operator --role business
 Push-Location frontend
 npm ci
@@ -39,7 +40,28 @@ Set-Location frontend
 npm run dev
 ```
 
-`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展和业务迁移版本。前端仍为 P00 骨架；P01 的工单能力通过 API 提供。Worker 尚未实现，新建工单会保持 `QUEUED`，不表示调查已经开始。模型和企业数据只能配置为 `mock`，不请求外部模型或生产业务接口。
+`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展、业务迁移版本和检查点表。前端仍为 P00 骨架；目前工单闭环通过 API 提供。模型和企业数据只能配置为 `mock`，不请求外部模型或生产业务接口。
+
+另开两个终端分别启动 Worker 和独立对账循环：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.workers.runtime worker
+```
+
+```powershell
+.\.venv\Scripts\python.exe -m app.workers.runtime reconcile
+```
+
+启动前只运行一次 `setup`，官方 Saver 会串行初始化/升级 `checkpoints` schema；不要让每个 Worker 自行 setup。Worker 从数据库领取任务，默认租约 30 秒，心跳约 10 秒。对账扫描租约到期的运行任务，先取得 run 锁再读检查点：已暂停/完成则补业务状态，未完成则重新排队。对账本身不执行调查图。`Ctrl+C` 停止循环；异常终止后重启同一命令即可，租约未到期时需等待对账。
+
+排查单个 run 时可单次执行，不输出客户内容或凭据：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.workers.runtime reconcile --once --run-id <run_uuid>
+.\.venv\Scripts\python.exe -m app.workers.runtime worker --once --run-id <run_uuid>
+```
+
+返回的 `processed` 表示本次是否取得任务进行处理，最终业务状态以工单查询结果为准。
 
 ## P01 API 使用
 
@@ -57,6 +79,26 @@ P01 尚无附件上传，`artifact_ids` 只接受空数组。`occurred_at` 必�
 本地 HTTP 开发默认 `AFTERSALES_COOKIE_SECURE=false`；HTTPS 部署须配置为 true，且配置明确的 `AFTERSALES_ALLOWED_ORIGINS`。该变量为 JSON 数组，默认只允许本机 5173/8000，不接受通配符。
 
 停止本项目数据库：`docker compose stop`（保留数据）。不执行 `down -v`。
+
+## P02 人工闭环与恢复
+
+固定 Mock 图依次检查设备和发生时间，缺失时进入 `WAITING_HUMAN`。这只是工程闭环的规则流程，尚无真实模型、语义检索或真实日志诊断。Mock 方案和回复均带模拟标记；`[MOCK_ERROR]` 测试文本可触发固定工具失败路径，后续场景回放在 P04 建设。
+
+1. 建单后启动 Worker；有完整设备/时间时直接生成待确认方案，否则持久暂停并建立人工待办。
+2. `GET /human-tasks` 查询人工池，默认返回开放待办，可用 status/assignee_id 筛选，cursor 为返回的 UUID 游标。`GET /human-tasks/{id}` 返回缺口、认领状态、当前 expected_version。
+3. `POST /human-tasks/{id}/claim` 认领，JSON 为 action_id＋expected_version；其他人已认领或版本失效返回 409。
+4. `POST /human-tasks/{id}/resume` 补充后排队恢复，只有认领人可操作。除 action_id、expected_version 外，facts_patch 支持 device_ref、occurred_at、occurred_at_precision；补充设备和时间可一次完成，也可以分两次暂停完成。替换已有关键事实请重新调查；非空 selected_feedback_ref 尚不支持。
+5. Worker 使用同一 run/thread 和 `Command(resume=...)` 继续。恢复动作已被检查点消费时不会再次提交给后续暂停点。生成方案后为 `PENDING_CONFIRMATION`，详情返回 solution_json，run 详情返回节点记录与检查点摘要。
+6. `POST /tickets/{id}/review` 用 decision=approve/revise 审核或修改 reply_draft，审核通过仍为待确认；`POST /tickets/{id}/customer-feedback` 用 outcome=contacted＋reason 记录业务人员已联系客户，此时才进入 `WAITING_CUSTOMER`。系统没有外部发送接口。
+7. `POST /tickets/{id}/close` 明确 outcome=resolved/unresolved＋reason，分别进入已解决/未解决结案，清理活动指针、开放待办和待执行任务。暂停中的工单先认领；运行中的工单先请求停止。
+
+上述写操作都携带 action_id、expected_version 和 CSRF，重复同一动作返回原结果。`customer-feedback` 的 resolved 显式调用结案规则，unresolved 创建新调查 run；均保留人工来源和原因。首版不自动生成成功经验。
+
+`POST /tickets/{id}/takeover` 携带 reason 请求停止并撤销旧执行权。详情先显示 cancel_requested，待 run 锁释放且 Worker 保存人工暂停后才能修改关键事实。不会在锁仍被旧执行占有时强行接管。运行停止后可用 `POST /tickets/{id}/reinvestigate`（reason＋可选 facts_patch）修正关键型号或时间，旧 run 标 superseded，新 run 使用新 thread；旧记录仍可查询。
+
+Mock 每轮默认最长 300 秒、24 个完成节点，最多 5 个自动轮次。等待人工不计入下一轮时间；每次恢复建立新预算轮次并保留历史。预算耗尽、固定工具失败或框架异常都会转人工。检查点缺失或图版本不兼容的待办禁止直接 resume，可人工结案或重新调查。
+
+运行回归：`.\.venv\Scripts\python.exe scripts/verify_backend.py`。P02 测试会启动独立 Worker 子进程并真正强制终止，覆盖认领后、工具写入后、检查点中断/完成后、resume 已消费后的故障点；故障注入仅允许本机独立测试库。
 
 ## 提交与阶段
 

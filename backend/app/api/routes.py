@@ -12,7 +12,7 @@ from app.api.schemas import (
 from app.config import get_settings
 from app.domain.enums import Priority, TicketStatus
 from app.domain.errors import AppError
-from app.repositories.models import AuthSession, Run, TicketEvent
+from app.repositories.models import AuthSession, HumanTask, NodeRun, Run, TicketEvent
 from app.services import auth, tickets
 
 
@@ -63,7 +63,11 @@ def list_tickets(
 def get_ticket(ticket_id: UUID, user: BusinessUser, db: Database):
     ticket = tickets.get_ticket(db, ticket_id)
     latest = db.scalar(select(func.max(TicketEvent.id)).where(TicketEvent.ticket_id == ticket_id)) or 0
-    return TicketDetail(**TicketView.model_validate(ticket).model_dump(), latest_event_id=latest)
+    human_id = db.scalar(select(HumanTask.id).where(HumanTask.ticket_id == ticket_id, HumanTask.status.in_(["unclaimed", "claimed", "resuming"])))
+    run = db.get(Run, ticket.active_run_id) if ticket.active_run_id else None
+    return TicketDetail(**TicketView.model_validate(ticket).model_dump(), latest_event_id=latest,
+                        solution_json=ticket.solution_json, result_json=ticket.result_json,
+                        human_task_id=human_id, cancel_requested=run.cancel_requested if run else False)
 
 
 @router.patch("/tickets/{ticket_id}", response_model=TicketView)
@@ -89,4 +93,8 @@ def get_run(run_id: UUID, user: BusinessUser, db: Database):
     run = db.get(Run, run_id)
     if not run:
         raise AppError(404, "RUN_NOT_FOUND", "运行记录不存在")
-    return run
+    nodes = list(db.scalars(select(NodeRun).where(NodeRun.run_id == run_id).order_by(NodeRun.created_at, NodeRun.id)))
+    return RunView(**{name: getattr(run, name) for name in RunView.model_fields if name != "nodes"},
+                   nodes=[{"id": str(node.id), "node_name": node.node_name, "status": node.status,
+                           "logical_step_id": node.logical_step_id, "duration_ms": node.duration_ms,
+                           "usage": node.usage_json} for node in nodes])

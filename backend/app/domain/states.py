@@ -3,11 +3,11 @@ from app.domain.errors import AppError
 
 
 TRANSITIONS = {
-    TicketStatus.QUEUED: {TicketStatus.RUNNING},
+    TicketStatus.QUEUED: {TicketStatus.RUNNING, TicketStatus.RESOLVED, TicketStatus.CLOSED_UNRESOLVED},
     TicketStatus.RUNNING: {TicketStatus.PENDING_CONFIRMATION, TicketStatus.WAITING_HUMAN},
-    TicketStatus.WAITING_HUMAN: {TicketStatus.QUEUED},
-    TicketStatus.PENDING_CONFIRMATION: {TicketStatus.WAITING_CUSTOMER},
-    TicketStatus.WAITING_CUSTOMER: {TicketStatus.QUEUED},
+    TicketStatus.WAITING_HUMAN: {TicketStatus.QUEUED, TicketStatus.RESOLVED, TicketStatus.CLOSED_UNRESOLVED},
+    TicketStatus.PENDING_CONFIRMATION: {TicketStatus.WAITING_CUSTOMER, TicketStatus.QUEUED, TicketStatus.RESOLVED, TicketStatus.CLOSED_UNRESOLVED},
+    TicketStatus.WAITING_CUSTOMER: {TicketStatus.QUEUED, TicketStatus.RESOLVED, TicketStatus.CLOSED_UNRESOLVED},
     TicketStatus.RESOLVED: set(),
     TicketStatus.CLOSED_UNRESOLVED: set(),
 }

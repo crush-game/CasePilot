@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import install_error_handlers
 from app.api.routes import router
+from app.api.workflow_routes import router as workflow_router
 from app.config import get_settings
 from app.repositories.models import SCHEMA_VERSION
 
@@ -33,6 +34,7 @@ class ConfiguredCORS(CORSMiddleware):
 
 app.add_middleware(ConfiguredCORS)
 app.include_router(router)
+app.include_router(workflow_router)
 install_error_handlers(app)
 
 
@@ -61,7 +63,8 @@ def ready():
             ).fetchone()
             schema_exists = conn.execute("SELECT to_regclass('business.alembic_version')").fetchone()[0]
             version = conn.execute("SELECT version_num FROM business.alembic_version").fetchone() if schema_exists else None
-        if vector is None or version is None or version[0] != SCHEMA_VERSION:
+            checkpoints = conn.execute("SELECT to_regclass('checkpoints.checkpoints')").fetchone()[0]
+        if vector is None or version is None or version[0] != SCHEMA_VERSION or checkpoints is None:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
     except psycopg.Error:
         return JSONResponse(status_code=503, content={"status": "not_ready"})

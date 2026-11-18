@@ -7,7 +7,7 @@ from pydantic import (
     field_validator, model_validator,
 )
 
-from app.domain.enums import Priority, Role, RunStatus, TicketStatus
+from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TicketStatus
 
 
 LoginName = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, pattern=r"^[a-z0-9_.-]{3,64}$")]
@@ -107,6 +107,10 @@ class TicketView(BaseModel):
 
 class TicketDetail(TicketView):
     latest_event_id: int
+    solution_json: dict = Field(default_factory=dict)
+    result_json: dict = Field(default_factory=dict)
+    human_task_id: UUID | None = None
+    cancel_requested: bool = False
 
 
 class TicketList(BaseModel):
@@ -139,3 +143,80 @@ class RunView(BaseModel):
     budget_json: dict
     stop_reason: str | None
     created_at: datetime
+    checkpoint_ref: dict | None = None
+    cancel_requested: bool = False
+    nodes: list[dict] = Field(default_factory=list)
+
+
+class VersionedAction(InputModel):
+    action_id: UUID
+    expected_version: int = Field(ge=1)
+
+
+class FactsPatch(InputModel):
+    device_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    occurred_at: AwareDatetime | None = None
+    occurred_at_precision: Literal["minute", "second"] | None = None
+
+    @model_validator(mode="after")
+    def validate_fields(self):
+        for field in self.model_fields_set:
+            if getattr(self, field) is None:
+                raise ValueError("补充事实不能为 null")
+        if self.occurred_at_precision and self.occurred_at is None:
+            raise ValueError("时间精度必须与发生时间一起提供")
+        return self
+
+
+class ResumeInput(VersionedAction):
+    facts_patch: FactsPatch = Field(default_factory=FactsPatch)
+    selected_feedback_ref: None = None
+
+
+class ReasonAction(VersionedAction):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class ReinvestigateInput(ReasonAction):
+    facts_patch: FactsPatch = Field(default_factory=FactsPatch)
+
+
+class CloseInput(ReasonAction):
+    outcome: Literal["resolved", "unresolved"]
+
+
+class ReviewInput(VersionedAction):
+    decision: Literal["approve", "revise"]
+    reply_draft: str | None = Field(default=None, min_length=1, max_length=5000)
+
+
+class FeedbackInput(ReasonAction):
+    outcome: Literal["contacted", "resolved", "unresolved"]
+
+
+class HumanTaskView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    ticket_id: UUID
+    run_id: UUID
+    pause_key: str
+    reason_code: str
+    status: HumanTaskStatus
+    assignee_id: UUID | None
+    payload_json: dict
+    created_at: datetime
+    expected_version: int
+    priority: Priority
+
+
+class HumanTaskList(BaseModel):
+    items: list[HumanTaskView]
+    next_cursor: UUID | None
+
+
+class ActionResult(BaseModel):
+    ticket_id: UUID
+    status: TicketStatus
+    version: int
+    run_id: UUID | None = None
+    human_task_id: UUID | None = None

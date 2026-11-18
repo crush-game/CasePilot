@@ -13,6 +13,7 @@ from app.domain.enums import Role
 from app.main import app
 from app.manage import create_user, upgrade_database
 from app.repositories.database import get_engine
+from app.workers.checkpoints import setup_checkpoints
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -25,6 +26,7 @@ def test_engine():
     assert url.host in {"localhost", "127.0.0.1"}
     engine = create_engine(url.set(drivername="postgresql+psycopg"))
     upgrade_database(engine)
+    setup_checkpoints(raw_url)
     yield engine
     engine.dispose()
 

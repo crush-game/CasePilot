@@ -555,6 +555,10 @@ run 状态固定为 queued/running/paused/succeeded/failed/superseded；人工�
 
 P01 契约细化：业务表使用 `business` schema，检查点仍独立使用官方 Saver；会话默认 8 小时，Cookie 为 httpOnly＋SameSite=Lax，CSRF Token 在登录响应返回，后续写操作放在 `X-CSRF-Token`。业务处理角色为 `business`，知识管理角色为 `knowledge_admin`；首版业务账号共同处理同一内部工单池，尚无多租户权限。工单列表支持 status/priority/assignee_id 筛选和稳定的时间＋UUID 游标；时间线按全局 event_id 增量查询。发生时间同时保存原始时区表示和 minute/second 精度。P01 未提供附件上传，非空 artifact_ids 明确拒绝，不静默忽略。后续数据表随所属 P 阶段新增迁移，不预建知识、经验与渠道功能。
 
+P02 契约细化：工单的方案与人工结果分别放在 solution_json/result_json，run 增加 cancel_requested，任务以 payload_json 保存 resume 动作及其原暂停键。human_actions 保存 consumed_at/consumed_checkpoint，消费判断以持久检查点里的 consumed_action_ids 为准；业务记录可在对账时补齐。human_tasks 按 run/pause_key 去重，并以部分唯一索引保证每工单最多一个开放待办。认领和恢复都携带 action_id/expected_version，恢复仅限认领人，事实补充先落库再排队；selected_feedback_ref 的真实记录选择在后续适配阶段开放。
+
+P02 的 human-tasks 列表使用稳定 UUID 游标，支持状态和认领人筛选；详情附带工单版本与优先级。工单详情增加开放 human_task_id、停止请求标识、方案与结果；run 详情增加完成节点记录与检查点摘要。所有方案审核、联系记录和结案操作都保留人工操作者及原因；没有发送接口时 contacted 只表示业务人员记录了已联系客户。
+
 ## 16. LangGraph、状态一致性与恢复协议
 
 ### 16.1 图结构与状态契约
@@ -606,6 +610,18 @@ LangGraph 的中断恢复可能从节点起点重放，不能把“恢复”理�
 运行时以 budget_epoch 的剩余时间为准。并行子任务调用前通过共享预算预留调用数与最大输出额度，完成后对账实际 usage，失败与重试也记账；不允许每个子 Agent 各自使用一份未合并的“总预算”。
 
 Token 总量与单次输出上限按选定模型明确配置，真实模式启动时缺少上限则拒绝运行。模型缺少可靠 usage 时标估算值，不填 0 冒充免费；估算不用于精确费用结论。预算耗尽或框架异常统一生成结构化停止原因和人工材料。
+
+### 16.6 P02 固定 Mock 图的实现契约
+
+固定图版本为 mock-v1，使用本章的节点名称，但由确定规则决定流转；设备或故障时间缺失时暂停，资料齐全时执行两个固定只读 Mock 调查并生成模拟方案。该流程用于工程恢复试验，真实 Supervisor、语义检索、日志调查和注册工具分别按后续开发单元接入。
+
+独立 Worker 领取任务采用短事务及 `FOR UPDATE SKIP LOCKED`；同一独占 psycopg 连接持有 run 会话锁并交给 PostgreSQL Saver。任务租约默认 30 秒，每约 10 秒心跳；检查点连接或执行权失效即结束当前尝试。业务投影按 ticket→run→task 顺序加锁，并校验 lease_token、有效租约、工单版本和活动 run。停止请求撤销旧 lease_token，后继 Worker 仍须取得 run 锁才能建立暂停，迟到方案不得写入工单。
+
+独立 reconcile 循环扫描到期运行任务，只读取检查点并补齐节点/人工待办/方案投影，或重新排队未完成任务；它不调用整张图调查。Worker 接管任务后也先读取检查点，start 任务的已有暂停直接投影；resume 任务只有在原 pause_key 匹配且 action_id 尚未消费时提交 Command，已经消费则继续剩余节点。重复只读动作优先复用按 run/轮次/逻辑步骤确定的持久工具结果；节点时间线按完成的逻辑步骤幂等写入，不把物理重放次数报告为独立成功调用次数。
+
+P02 Mock 预算初值为每轮 300 秒、24 个完成节点、至多 5 轮；真实工具/模型预算仍按 16.5 在后续阶段建设。每轮起点持久保存，崩溃重试不刷新同轮截止时间；等待人工之后恢复使用新轮次并保留历史。原始请求、人工事实来源、run/thread 和检查点均保留，图版本或检查点不兼容时只能人工处理或新建 run 重新调查。
+
+业务迁移与检查点初始化仍为两个显式步骤：先 Alembic 兼容升级，再串行执行官方 Saver setup；Worker 不在启动时并发 setup。readiness 检查业务迁移版本、vector 和检查点表，liveness 不查询模型。P02 接口、命令和故障测试的实际结果记录在开发记录，不写进方案正文。
 
 ## 17. RAG、工具与页面实施细节
 

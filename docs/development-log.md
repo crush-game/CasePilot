@@ -4,7 +4,7 @@
 
 2026-11-18 用户授权从 P00 开始实现。每个 P 单元全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 各完成后 push。本阶段未通过验收，不进入下一阶段。用户随后确定仓库为 [crush-game/CasePilot](https://github.com/crush-game/CasePilot)，本地目录暂保留 aftersales-agent。
 
-当前进度：P00、P01 验收通过，尚未开始 P02；未到大阶段 push 节点。
+当前进度：P00～P02 验收通过，尚未开始 P03；未到大阶段 push 节点。
 
 ## P00：工程隔离、依赖兼容与框架试验
 
@@ -99,3 +99,56 @@ P01 按技术方案实现业务数据、Alembic 迁移、账号和工单 API，�
 - 业务账号共享单一内部工单池，尚无多租户、SSO、密码找回或对外账号注册；日常使用账号需运行 README 的交互式命令自行创建。
 - P00 已记录的开发依赖审计问题不在本轮改动范围内；未声称已修复。
 - 下一阶段为 P02：独立 Worker、固定 Mock 图、HITL 与对账恢复。本轮停止在 P01 验收与提交边界，不 push。
+
+## P02：Worker、固定 Mock 图、HITL 与对账恢复
+
+日期：2026-11-18。验收结论：通过。交付无真实模型的工单闭环；不进入 P03 页面开发。
+
+### 修改与数据契约
+
+- `backend/migrations/versions/0002_runtime.py`：新增 human_tasks、human_actions、node_runs、tool_executions 共 4 表，以及方案、人工结果、停止请求、resume payload 的兼容字段；旧业务数据保留，初始迁移不改写。业务迁移与官方 Saver setup 分开执行。
+- `backend/app/workers/`：独立 Worker、租约心跳、run 会话锁、节点与业务投影、独立对账命令。检查点连接失效停止当前尝试；不透明重连同一旧执行。默认租约 30 秒、约 10 秒心跳；对账读取到期任务的检查点后补业务状态或重排任务，不重新调查整张图。
+- `backend/app/agents/graphs/mock.py`：固定 mock-v1 图，按设备/时间缺口暂停，资料齐全后执行两个固定只读 Mock 调查，生成并校验模拟方案。没有调用真实模型、真实企业 API 或语义检索。
+- `backend/app/services/human.py`、`workflow_common.py`：认领、补充恢复、停止请求、方案审核、已联系记录、重新调查、显式结案；追加人工来源、审计、版本与快照。恢复保留同一 thread，关键事实修正新建 run/thread。
+- `backend/app/api/workflow_routes.py`、`routes.py`、`schemas.py`：人工池、待办详情、人工操作和节点记录；工单详情显示方案、结果、开放待办、停止标识。所有写接口沿用 Cookie/CSRF、角色和 expected_version 校验。
+- `backend/app/domain/`、`config.py`、`repositories/models.py`、`main.py`：状态转移、人工待办枚举、预算和租约配置、部分唯一索引及检查点就绪检查。
+- `backend/tests/integration/test_p02.py`：Mock 闭环、子进程强制终止、旧执行权拒写、断连、人工权限、预算、图版本及心跳续租测试。测试故障注入仅对本机 aftersales_test 生效，不提供 HTTP 注入入口。
+- `README.md`、`.env.example`、`docs/technical-plan.md`：同步 API/Worker/reconcile 启动命令、恢复步骤和 P02 细化契约；父级技术方案同步。未新增依赖，未修改前端源文件或旧 aftersales 仓库。
+
+### 实际验收与证据
+
+本轮最终完整回归为 **44 passed / 98.06 秒**；随后仅新增并单独执行心跳正向续租测试，**1 passed / 4.40 秒**。共 45 个不同测试用例通过；后续完整入口会包含全部 45 项。
+
+| 命令或场景 | 实际结果 |
+|---|---|
+| `.\.venv\Scripts\python.exe scripts/verify_backend.py` | 最终 44 项完整回归通过，含 P00/P01；pip check 通过 |
+| 加载项目 `.env` 后单独执行 `pytest backend/tests/integration/test_p02.py::test_heartbeat_renews_owned_lease -q` | 1 passed；实际数据库租约被心跳延长，执行权保持有效 |
+| 创建→暂停→认领→补充→恢复→方案→审核→已联系→明确解决 | 通过；同一 run/thread，审核通过仍待确认，联系记录后 WAITING_CUSTOMER，人工确认才 RESOLVED |
+| 资料齐全的工单 | 固定 Mock 图直接形成 PENDING_CONFIRMATION；没有假装已经解决 |
+| 任务认领后、首个检查点前强制终止独立 Worker | 到期对账仅重排任务；新 Worker 执行后出现一个人工待办 |
+| 中断检查点已保存、人工待办投影前强制终止 | 对账直接补 WAITING_HUMAN 与唯一待办；重复对账不产生新待办 |
+| 只读工具结果入库后、节点检查点前强制终止 | 恢复复用原逻辑工具记录；最终共两个 Mock 工具结果，无重复结果行 |
+| 图完成后、方案投影前强制终止 | 对账直接补待确认方案，不重跑调查 |
+| resume 已被检查点消费、业务任务尚未完成时强制终止 | 恢复继续剩余节点；旧 action 不提交给第二个暂停点，旧 HTTP 请求仅返回幂等历史结果 |
+| 租约到期但旧 Worker 的 run 锁仍存活 | Worker 和对账均无法越过锁领取；旧 token 未被新执行替换 |
+| 已生成方案后请求停止，旧执行尝试投影 | 旧执行抛 LeaseLost，方案未写入工单；锁释放后新 Worker 建立人工暂停 |
+| 检查点连接断开 | 旧执行的业务写入被拒绝；到期恢复可建立待办 |
+| 图版本不兼容 | 禁止直接 resume；原始请求保留，新 run 重新调查可生成模拟方案 |
+| 认领权限、旧版本写入、重复恢复、人工未解决结案 | 403/409/幂等符合契约；终态清理活动指针及开放待办 |
+| 步数预算/跨轮次上限、固定 Mock 工具失败 | 进入可见人工待办；不无限循环 |
+| `.\.venv\Scripts\python.exe -m app.manage migrate` | 本项目开发库升级到 0002_runtime，仅新增表/兼容字段 |
+| `.\.venv\Scripts\python.exe -m app.workers.runtime setup` | 官方检查点表串行初始化成功 |
+| Worker 与 reconcile 的 `--once --run-id 00000000-0000-0000-0000-000000000000` | 命令启动成功，均返回 processed=false；未消费既有开发工单 |
+| 开发库 `GET /health/ready` 与迁移版本查询 | 200，实际版本为 0002_runtime |
+
+开发中还通过故障回归修正了“尚无 checkpoint_id 的初始配置”处理；对账补齐节点时接受空检查点，不把任务已认领误当成图已启动。节点 input_refs 保存执行时的 case_version，已通过断言核对。
+
+### 边界与后续
+
+- 本阶段是固定 Mock 工程闭环，无模型效果、真实诊断或业务收益结论。Mock 引用只是测试来源标记，不等于生产资料引用校验；真实证据治理在后续阶段建设。
+- 前端仍为骨架，接口可用；日常账号需按 README 交互创建。P03 才实现业务人员工作台。
+- 同 run 恢复只支持小范围设备/时间补充，真实反馈选择、附件、真实工具与模型在后续阶段接入。
+- 节点记录为检查点中完成逻辑步骤的幂等投影；任务 attempt 保留重新领取次数，不宣称每个外部请求恰好执行一次。
+- 对账覆盖该协议中“持久检查点已写、任务尚未提交业务投影”等到期运行任务；不承诺恢复数据库丢失、人工删表或存储整体不可用时成功处理。
+- 没有外部发送接口；contacted 来自业务人员显式记录。结案不自动生成成功经验，经验候选在 P09 实施。
+- 下一单元为 P03，当前停止在 P02 验收和中文提交边界，不 push。
