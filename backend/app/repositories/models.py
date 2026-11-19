@@ -1,18 +1,20 @@
 from datetime import datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint,
-    Identity, Index, Integer, LargeBinary, MetaData, String, Text, UniqueConstraint, func, text,
+    Identity, Index, Integer, LargeBinary, MetaData, Numeric, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from pgvector.sqlalchemy import Vector
 
 from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskStatus, TicketStatus
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0003_knowledge"
+SCHEMA_VERSION = "0004_providers"
 
 
 def choices(column, enum):
@@ -277,7 +279,7 @@ class KBDocument(Base):
         CheckConstraint("version >= 1 AND revision >= 1", name="versions"),
         CheckConstraint("status IN ('pending','active','failed','archived','superseded')", name="status"),
         CheckConstraint("effective_to IS NULL OR effective_from IS NULL OR effective_to > effective_from", name="effective_range"),
-        CheckConstraint("data_source = 'mock' AND retrieval_mode = 'bm25'", name="mode"),
+        CheckConstraint("data_source = 'mock' AND retrieval_mode IN ('bm25','hybrid')", name="mode"),
         Index("uq_kb_documents_active_key", "doc_key", unique=True, postgresql_where=text("status = 'active'")),
         Index("ix_kb_documents_status_created", "status", "created_at", "id"),
         Index("ix_kb_documents_product_scope", "product_scope", postgresql_using="gin"),
@@ -357,3 +359,85 @@ class KBIndexState(Base):
     version: Mapped[int] = mapped_column(BigInteger, default=0)
     snapshot_json: Mapped[dict] = mapped_column(JSONB, default=dict)
     snapshot_checksum: Mapped[str] = mapped_column(String(64), default="")
+    active_profile_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.embedding_profiles.id"))
+
+
+class ProviderBudget(Base):
+    __tablename__ = "provider_budgets"
+    __table_args__ = (CheckConstraint("max_calls > 0 AND max_tokens > 0 AND max_cost > 0 AND calls_used >= 0 AND tokens_used >= 0 AND exposure_cost >= 0", name="limits"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    scope: Mapped[str] = mapped_column(String(120))
+    max_calls: Mapped[int] = mapped_column(Integer)
+    max_tokens: Mapped[int] = mapped_column(BigInteger)
+    max_cost: Mapped[Decimal] = mapped_column(Numeric(18, 8))
+    currency: Mapped[str] = mapped_column(String(8))
+    calls_used: Mapped[int] = mapped_column(Integer, default=0)
+    tokens_used: Mapped[int] = mapped_column(BigInteger, default=0)
+    exposure_cost: Mapped[Decimal] = mapped_column(Numeric(18, 8), default=Decimal(0))
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ProviderCall(Base):
+    __tablename__ = "provider_calls"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    budget_id: Mapped[UUID] = mapped_column(ForeignKey("business.provider_budgets.id"), index=True)
+    operation: Mapped[str] = mapped_column(String(32))
+    inference_mode: Mapped[str] = mapped_column(String(16))
+    profile_json: Mapped[dict] = mapped_column(JSONB)
+    request_hash: Mapped[str] = mapped_column(String(64))
+    response_hash: Mapped[str | None] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(32), default="reserved")
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    reserved_tokens: Mapped[int] = mapped_column(BigInteger)
+    reserved_cost: Mapped[Decimal] = mapped_column(Numeric(18, 8))
+    usage_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    provider_request_id: Mapped[str | None] = mapped_column(String(200))
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EmbeddingProfile(Base):
+    __tablename__ = "embedding_profiles"
+    __table_args__ = (UniqueConstraint("id", "dimensions", name="uq_embedding_profiles_id_dimensions"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
+    dimensions: Mapped[int] = mapped_column(Integer)
+    inference_mode: Mapped[str] = mapped_column(String(16))
+    config_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KBEmbedding(Base):
+    __tablename__ = "kb_embeddings"
+    __table_args__ = (
+        UniqueConstraint("chunk_id", "profile_id", name="uq_kb_embeddings_chunk_profile"),
+        ForeignKeyConstraint(["profile_id", "dimensions"], ["business.embedding_profiles.id", "business.embedding_profiles.dimensions"],
+                             name="fk_kb_embeddings_profile_dimensions"),
+        CheckConstraint("vector_dims(embedding) = dimensions", name="dimensions"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    chunk_id: Mapped[UUID] = mapped_column(ForeignKey("business.kb_chunks.id"))
+    profile_id: Mapped[UUID] = mapped_column()
+    dimensions: Mapped[int] = mapped_column(Integer)
+    embedding: Mapped[list[float]] = mapped_column(Vector())
+    content_hash: Mapped[str] = mapped_column(String(64))
+    provider_call_id: Mapped[UUID] = mapped_column(ForeignKey("business.provider_calls.id"))
+
+
+class KBIndexBuild(Base):
+    __tablename__ = "kb_index_builds"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    profile_id: Mapped[UUID] = mapped_column(ForeignKey("business.embedding_profiles.id"))
+    budget_id: Mapped[UUID] = mapped_column(ForeignKey("business.provider_budgets.id"))
+    base_version: Mapped[int] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(32), default="running")
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    index_version: Mapped[int | None] = mapped_column(BigInteger)
+    chunk_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

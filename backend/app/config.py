@@ -1,5 +1,7 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
+from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -13,6 +15,9 @@ class Settings(BaseSettings):
     database_url: SecretStr
     model_provider: Literal["mock"] = "mock"
     model_profiles: dict[Role, ModelProfile] = Field(default_factory=dict)
+    provider_api_key: SecretStr | None = None
+    provider_config_path: Path | None = None
+    provider_budget_id: UUID | None = None
     enterprise_data_provider: Literal["mock"] = "mock"
     session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
     cookie_secure: bool = False

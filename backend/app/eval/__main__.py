@@ -31,11 +31,20 @@ ENGINEERING_CHECKS = {
 
 def main():
     parser = argparse.ArgumentParser(description="P04 确定性契约回放，不报告真实模型或根因效果")
-    parser.add_argument("command", choices=["replay"])
-    parser.add_argument("--suite", choices=["smoke"], required=True)
+    parser.add_argument("command", choices=["replay", "live"])
+    parser.add_argument("--suite", choices=["smoke", "p06"], required=True)
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[3]
     load_dotenv(root / ".env", encoding="utf-8-sig")
+    if args.command == "live" and args.suite == "p06":
+        from app.eval.live import main as live_main
+        try:
+            return live_main()
+        except Exception:
+            print(json.dumps({"passed": False, "real_acceptance": False, "error_code": "LIVE_CONFIGURATION_OR_STORAGE_ERROR"}))
+            return 2
+    if args.command != "replay" or args.suite != "smoke":
+        parser.error("使用 replay --suite smoke 或 live --suite p06")
     # S11/S12 的恢复验收必须用真实本机测试库，不能把纯模拟调用当成崩溃恢复通过。
     raw_url = os.environ.get("AFTERSALES_TEST_DATABASE_URL")
     if not raw_url:

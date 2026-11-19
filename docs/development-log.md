@@ -4,7 +4,7 @@
 
 2026-11-18 用户授权从 P00 开始实现。每个 P 单元全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 各完成后 push。本阶段未通过验收，不进入下一阶段。用户随后确定仓库为 [crush-game/CasePilot](https://github.com/crush-game/CasePilot)，本地目录暂保留 aftersales-agent。
 
-当前进度：P00～P03 验收通过，尚未开始 P04；未到大阶段 push 节点。
+当前进度：P00～P06 验收通过；P06 已完成真实硅基流动小集及完整回归，按约定中文提交；未进入 P07，未到大阶段 push 节点。
 
 ## P00：工程隔离、依赖兼容与框架试验
 
@@ -285,3 +285,45 @@ smoke 的 10 项工程检查是完整后端回归中的子集，不另累计为�
 - 原文不可变：无效编码等源文件错误上传新版本，暂时处理故障可显式重试，最多5次执行尝试；归档后不能被重试自动重新发布。
 - 基础脱敏不宣称覆盖所有企业文档/日志格式。没有连接生产数据或外部模型；开发库仅新增兼容表，未删除既有业务数据。
 - 本轮仅中文提交 P05，不 push。下一单元为 P06：真实模型、embedding、pgvector 与 rerank。
+
+## P06：真实模型适配、pgvector 与混合检索
+
+日期：2026-11-19。验收结论：通过。基于 P05 `22c65c9` 开发，开始时仓库干净。用户明确采用硅基流动并授权首次5元程序预算，随后在项目 `.env` 配置专用 Key；真实服务小集、本地契约及完整回归均通过。本轮仅完成 P06，中文提交，不 push、不进入 P07。
+
+### 修改与交付
+
+- `providers/configuration.py`、`config/providers.siliconflow.json`、`.env.example`：独立公开配置和项目 SecretStr 密钥；默认硅基流动聊天 Qwen3.5-35B-A3B、1024维 Pro/bge-m3 与 Pro/bge-reranker-v2-m3，可按角色覆盖模型。输入/输出上限、超时、币种、费率/配置版本显式校验，聊天关闭思考输出。该配置通过真实接口小集，作为后续效果评测基线，不作为效果结论。
+- `providers/remote.py`、`client.py`：异步 HTTP 协议适配和 JSON/schema、data_source、引用白名单检查；错误安全编码、响应大小/维度/非有限值/重复索引校验。瞬时错误至多一次重试、JSON 至多一次修复；每次物理请求留记录，无密钥/预算不调用，不回落到 Mock。业务 data_source 与 inference_mode 分开，旧 mock-v1 检查点兼容。
+- `providers/ledger.py`、`repositories/models.py`、`0004_providers.py`：共享预算、调用审计、向量 profile、向量和构建记录五张表。请求前锁预算并预留调用数/Token/费用，完成后对账；未知费用保留 null 和预留风险，不记成免费。审计不保存 Key、原始请求/响应正文，保留 hash、供应商请求 ID、公开配置和用量。调用排序使用预算内预留序号，不依赖可能回拨的时钟。
+- `knowledge/hybrid.py`、`index.py`、`schemas.py`：按范围过滤的 BM25/pgvector 精确余弦各20候选、RRF k=60、预算内可选重排、最多6段。profile 包含端点/模型/维度/预处理/执行模式，契约和真实向量隔离；完整覆盖且语料版本不变才原子切换，失败保持旧发布。检索网络调用不持发布锁，返回前核对发布版本/profile，拒绝归档后的迟到结果。
+- `workers/ingestion.py`、`knowledge/adapter.py`、`tools/contracts.py`：混合模式新文档先生成同 profile 向量、调用前续租，再与片段及发布版本同事务提交；失权或 profile 改变不发布。API 和白名单知识工具透传 profile、执行模式、候选数与用量，数据库适配名称更新为 knowledge-index-v1。
+- `providers/manage.py`、`eval/live.py`：检查配置、显式共享预算/索引/审计命令；真实小集仅发送6份公开虚构资料，在单独本机验证库执行6个查询/重排和2份草稿，默认5元/60调用/50万Token/600秒。无 Key 在建库/网络前停止；契约执行始终 real_acceptance=false。真实小集的账本库与忽略的报告已留存，详情见下方实际验证。
+- 前端 OpenAPI/TypeScript 重新生成；README、方案、配置示例同步。httpx 作为运行依赖使用已有锁定的0.28.1，无新增全局安装。
+
+### 实际验证
+
+| 命令或场景 | 结果 |
+|---|---|
+| `.\.venv\Scripts\python.exe scripts/verify_backend.py` | 最终 pip check 通过；158 passed / 146.64 秒，覆盖原129项及新增29项 |
+| 工具追溯字段补齐后相关回归 | 75 passed / 13.82 秒；包含全部工具单测、P05 数据库工具调用和P06集成测试 |
+| Provider 配置及无 Key 边界单测 | 8 passed / 1.79 秒；新增禁止数据库连接/建库/ProviderSession 的替身，确认无 Key 返回 PROVIDER_KEY_MISSING、real_acceptance=false |
+| HTTP 契约与预算 | JSON一次修复/二次非法停止、401不重试、429/503/实际异步超时最多一次重试；预算并发只允许一次预留，Token/费用不足时零请求；重试预算耗尽保留首个调用费用，缺失 usage 不记零 |
+| pgvector/发布边界 | 向量乱序回包归位/归一化、错误维度/零向量拒绝、profile/dimension 数据库约束、RRF去重、可选重排、重复 rerank 索引拒绝；切换失败保留旧活动索引、新文档同 profile 发布、重排期间归档后不返回旧结果 |
+| 完整小集的 HTTP 模拟执行 | 6查询/2草稿完成，明确 inference_mode=contract、real_acceptance=false，不能当真实服务验收 |
+| `npm run api:generate`、`npm run api:check`、`npm run test:unit`、`npm run build` | 契约一致，7单测通过，TypeScript及Vite构建通过 |
+| `npm run test:e2e` | 9个实际 Chrome 场景通过；测试脚本关闭自行启动的 API/前端/浏览器 |
+| 本机开发库迁移及 readiness | 核验本机 aftersales 后升级到0004_providers；Ticket/Run/知识文档数量保持，readiness=200 |
+| `python -m app.providers.manage check-config` | 用户配置后 key_configured=true，仅打印公开模型名及布尔状态 |
+| `python -m app.eval live --suite p06` | 真实硅基流动小集通过，passed=true、real_acceptance=true；6份资料/1024维向量、6次hybrid检索及rerank、2份JSON草稿；15次调用全部成功，无重试或JSON修复 |
+| 真实费用/追溯 | 供应商全部返回usage，共10564 Token；配置费率估算CNY 0.00602264，低于5元预算；15条供应商请求ID、响应hash及调用账本齐全，未把程序估算当平台账单 |
+| 真实数据库只读复核 | profile 为 real、维度1024、向量6条、调用15条、index_version=7；与报告一致 |
+
+真实验收报告：`output/p06/aftersales_p06_live_c16befd0b25d4e68914712ad7cc43f3d.json`（Git忽略）。隔离审计库同名（去掉`.json`）；build_id=`e94cb8c0-38c6-4e99-b678-7dba58136433`，profile_id=`59a6b874-e537-46f1-9961-d3203a054d5d`。聊天/embedding响应模型名与配置一致；rerank响应不带模型名，保存请求profile及供应商请求ID，不补造served_model。草稿引用均来自本次检索白名单，data_source=mock、inference_mode=real、reviewed=false。
+
+### 阶段出口与交接
+
+- P06 验收条件均满足：真实服务小集通过；JSON校验/修复、超时、重试、共享费用预算和混合检索可追溯；无Key停机通过独立契约验证。密钥不输出、不提交；没有连接生产数据。
+- 本轮真实验证只使用独立审计库，开发库保留原有资料与已发布模式，未把整个工作台切成真实模型。后续使用真实检索需显式建立索引并配置有效共享预算，不能复用已过期的小集预算。
+- 仅中文提交 P06，不 push。下一开发单元为 P07：Supervisor 与知识调查子图，需另行继续该阶段。
+
+限制：当前只验证原型契约与小语料索引机制，未测真实模型效果、吞吐或生产资料；pgvector 为精确扫描，无 HNSW。费用按公开配置估算，不等于平台账单硬封顶。显式全量索引构建被杀后可重跑复用缓存，旧构建可能保留 running，不声称有自动构建对账；正式入库任务仍沿用租约恢复。固定工单图仍是 Mock，未实现 P07 自主 Supervisor。

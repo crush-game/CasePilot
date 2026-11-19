@@ -201,6 +201,38 @@ Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/sear
 
 验收仍运行 `scripts/verify_backend.py`，包含 MD/TXT、引用、失效、坏文件、原子发布、并发重试/版本、快照重建、独立进程终止与租约恢复。公开 API 更新后需运行 `npm run api:generate` 与 `npm run api:check`。
 
+## P06 Provider 与混合检索接入
+
+默认配置见 `config/providers.siliconflow.json`：聊天 `Qwen/Qwen3.5-35B-A3B`（关闭思考输出），embedding `Pro/BAAI/bge-m3`（1024维），rerank `Pro/BAAI/bge-reranker-v2-m3`。这是首轮验证基线，模型效果以实际小集为准。公开配置包括地址、模型、输入/输出上限、超时、币种、费率版本与角色覆盖；密钥只在本项目 `.env` 设置 `AFTERSALES_PROVIDER_API_KEY`。可用 `AFTERSALES_PROVIDER_CONFIG_PATH` 指定其他配置，路径相对项目根目录。
+
+```powershell
+# 检查只输出 Key 是否存在和公开模型名，不输出 Key
+.\.venv\Scripts\python.exe -m app.providers.manage check-config
+# 首次真实接口小集：需要本项目 Key、本机 PostgreSQL 和已配置的 aftersales_test
+.\.venv\Scripts\python.exe -m app.eval live --suite p06
+```
+
+真实小集先创建独立的 `aftersales_p06_live_<随机值>` 数据库并迁移，导入6份公开虚构资料，执行向量构建、6次混合检索/重排和2次结构化草稿。程序共享预算为5元、60次物理调用、50万Token、600秒；重试和 JSON 修复均计数。报告保存于 Git 忽略的 `output/p06/`，验证库留存调用账本供审计。无 Key 则在创建数据库或网络请求前返回 `PROVIDER_KEY_MISSING`、`real_acceptance=false`。HTTP 模拟契约测试仅标记 `contract`，不能算真实验收；此小集也不代表 Agent 决策或诊断准确率评测。
+
+业务迁移新增 `0004_providers`：共享预算、调用审计、embedding profile、向量和索引构建五张表，兼容原 BM25 文档。`httpx` 作为运行依赖使用既有锁定版本。升级本地开发环境先执行 `python -m app.manage migrate`，不要删除数据库卷。以下命令用于显式把已有活动语料切到真实混合检索，会将脱敏片段发送给配置服务：
+
+```powershell
+.\.venv\Scripts\python.exe -m app.providers.manage create-budget --max-cost 5 --max-calls 60 --max-tokens 500000 --seconds 600
+# 使用上一步输出的 UUID；不要照抄占位符
+.\.venv\Scripts\python.exe -m app.providers.manage build-index --budget-id <budget_uuid>
+.\.venv\Scripts\python.exe -m app.providers.manage report --budget-id <budget_uuid>
+```
+
+发布后 API/入库 Worker 还需要 `AFTERSALES_PROVIDER_BUDGET_ID` 指向一个未到期、有余量的共享预算；修改 `.env` 后重启相应进程。预算不会自动补充，API 不接受调用者随意重置预算。当前固定 `mock-v1` 工单图仍使用 Mock；真实 `ModelClient` 通过显式 `ProviderSession` 接入，自主调查在 P07 接入。
+
+`POST /knowledge/search` 可指定 `retrieval_mode=bm25/hybrid`；省略时使用当前已发布模式，`rerank` 默认 false。BM25 始终可显式查询，重排只用于 hybrid；模型失败不静默回落。混合路径按适用范围过滤，BM25和 pgvector 精确余弦检索各取20候选，RRF（k=60）融合，再按预算可选重排，最多返回6段。返回 profile、模式、发布版本、候选数及调用用量；`data_source=mock` 表示虚构业务资料，`inference_mode=real` 表示真实接口，含义独立。
+
+向量 profile 由端点、模型、维度、预处理版本和执行模式确定，费用配置不改变向量语义。数据库约束保证片段/profile唯一、维度匹配；真实与契约向量不可混用。切换模型先完整构建，校验语料版本未变后原子发布；失败保留旧活动索引。新文档在发布前完成同 profile 的 embedding，失败不替换旧版本；网络调用不占用发布事务锁，返回前再次核对发布版本，拒绝归档/替换后的迟到检索结果。构建进程中断后可显式重跑复用已完成向量，原构建审计行可能仍为 running，不宣称已有自动构建对账 Worker。
+
+调用前在数据库锁内预留调用数、Token和费用，完成后按供应商 usage 对账。每个只读请求最多1次瞬时重试、结构化 JSON 最多1次修复；引用和 data_source 必须通过校验。未知用量/费用保持 null，保留预留风险额度；审计只保存公开 profile、请求/响应 hash、供应商请求 ID 和用量，不保存 Key 或原始请求/响应正文。费率是带版本的配置估算，程序预算不等于平台账单的硬封顶，费用核对以平台为准。当前小规模向量检索未建 HNSW 索引，未验证规模性能。
+
+配置依据：[硅基流动价格](https://www.siliconflow.cn/pricing)、[聊天接口](https://docs.siliconflow.cn/docs/api/chat-completions-post)、[embedding 接口](https://docs.siliconflow.cn/docs/api/embeddings-post)、[rerank 接口](https://docs.siliconflow.cn/docs/api/rerank-post)、[BGE-M3 模型卡](https://huggingface.co/BAAI/bge-m3)。实际验收状态见 `docs/development-log.md`。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。

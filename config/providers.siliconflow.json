@@ -1,0 +1,36 @@
+{
+  "config_version": "siliconflow-baseline-2026-11-19",
+  "chat": {
+    "model": "Qwen/Qwen3.5-35B-A3B",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "timeout_seconds": 45.0,
+    "max_input_tokens": 16000,
+    "max_output_tokens": 1500,
+    "input_price_per_million": 0.4,
+    "output_price_per_million": 3.2,
+    "currency": "CNY",
+    "price_version": "siliconflow-2026-11-19-short-context",
+    "response_format": "json_object",
+    "enable_thinking": false,
+    "thinking_control": "enable_thinking"
+  },
+  "embedding": {
+    "model": "Pro/BAAI/bge-m3",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "timeout_seconds": 45.0,
+    "max_input_tokens": 64000,
+    "input_price_per_million": 0.07,
+    "currency": "CNY",
+    "price_version": "siliconflow-2026-11-19",
+    "dimensions": 1024
+  },
+  "rerank": {
+    "model": "Pro/BAAI/bge-reranker-v2-m3",
+    "base_url": "https://api.siliconflow.cn/v1",
+    "timeout_seconds": 45.0,
+    "max_input_tokens": 128000,
+    "input_price_per_million": 0.07,
+    "currency": "CNY",
+    "price_version": "siliconflow-2026-11-19"
+  }
+}

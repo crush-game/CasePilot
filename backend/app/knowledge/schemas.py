@@ -46,7 +46,7 @@ class DocumentView(View):
     filename: str
     source_type: str
     data_source: Literal["mock"]
-    retrieval_mode: Literal["bm25"]
+    retrieval_mode: Literal["bm25", "hybrid"]
     product_scope: list[str]
     firmware_versions: list[str]
     regions: list[str]
@@ -120,6 +120,8 @@ class KnowledgeScope(InputModel):
 class SearchQuery(KnowledgeScope):
     query: str = Field(min_length=1, max_length=500)
     limit: int = Field(default=20, ge=1, le=20)
+    retrieval_mode: Literal["bm25", "hybrid"] | None = None
+    rerank: bool = False
 
 
 class Citation(View):
@@ -149,11 +151,12 @@ class Citation(View):
     missing_fields: list[str]
     unavailable_reasons: list[str]
     data_source: Literal["mock"] = "mock"
-    retrieval_mode: Literal["bm25"] = "bm25"
+    retrieval_mode: Literal["bm25", "hybrid"] = "bm25"
 
 
 class SearchHit(Citation):
     score: float
+    rerank_score: float | None = None
 
 
 class SearchResult(View):
@@ -161,8 +164,13 @@ class SearchResult(View):
     missing_fields: list[str]
     index_version: int
     tokenizer: str
-    retrieval_mode: Literal["bm25"] = "bm25"
+    retrieval_mode: Literal["bm25", "hybrid"] = "bm25"
     data_source: Literal["mock"] = "mock"
+    embedding_profile_id: UUID | None = None
+    inference_mode: Literal["none", "contract", "real"] = "none"
+    rerank_mode: Literal["off", "contract", "real"] = "off"
+    provider_usage: list[dict] = Field(default_factory=list)
+    retrieval_details: dict = Field(default_factory=dict)
 
 
 class SourceView(View):

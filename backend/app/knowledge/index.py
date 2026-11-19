@@ -74,7 +74,7 @@ def applicability(doc: KBDocument, query: KnowledgeScope, now):
     return missing, unavailable
 
 
-def citation_value(chunk: KBChunk, doc: KBDocument, query: KnowledgeScope, now):
+def citation_value(chunk: KBChunk, doc: KBDocument, query: KnowledgeScope, now, retrieval_mode=None):
     missing, unavailable = applicability(doc, query, now)
     if checksum(chunk.text.encode()) != chunk.content_hash:
         unavailable.append("content_hash_mismatch")
@@ -84,18 +84,26 @@ def citation_value(chunk: KBChunk, doc: KBDocument, query: KnowledgeScope, now):
         heading_path=chunk.heading_path, start_line=chunk.start_line, end_line=chunk.end_line, metadata=chunk.metadata_json,
         product_scope=doc.product_scope, firmware_versions=doc.firmware_versions, regions=doc.regions, channels=doc.channels,
         effective_from=doc.effective_from, effective_to=doc.effective_to,
-        usable=not missing and not unavailable, missing_fields=missing, unavailable_reasons=unavailable)
+        usable=not missing and not unavailable, missing_fields=missing, unavailable_reasons=unavailable,
+        retrieval_mode=retrieval_mode or doc.retrieval_mode)
 
 
-def search(db: Session, query: SearchQuery) -> SearchResult:
+def search(db: Session, query: SearchQuery, provider_session=None) -> SearchResult:
     publication_lock(db)
+    state = index_state(db)
+    if query.retrieval_mode == "hybrid" or query.retrieval_mode is None and state.active_profile_id is not None:
+        db.commit()
+        from app.knowledge.hybrid import search as hybrid_search
+        return hybrid_search(db, query, provider_session)
+    if query.rerank:
+        raise AppError(422, "RERANK_REQUIRES_HYBRID", "当前仅支持对混合检索结果启用重排序")
     state, rows = checked_snapshot(db)
     now = db.scalar(select(func.clock_timestamp()))
     lookup = {str(chunk.id): (chunk, doc) for chunk, doc in rows}
     hits, missing = [], set()
     for ref, score in bm25_scores(state.snapshot_json["documents"], query.query):
         chunk, doc = lookup[ref]
-        value = citation_value(chunk, doc, query, now)
+        value = citation_value(chunk, doc, query, now, retrieval_mode="bm25")
         if not value.unavailable_reasons:
             missing.update(value.missing_fields)
         if value.usable and len(hits) < query.limit:

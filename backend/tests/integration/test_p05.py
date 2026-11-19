@@ -103,7 +103,7 @@ def test_txt_upload_and_registered_tool_use_actual_published_index(admin_api, te
     tools = ToolRegistry(DatabaseKnowledgeAdapter(ToolContext("customer-demo", "mock@example.test"), {}, test_engine))
     result = tools.call("search_knowledge", {"customer_ref": "customer-demo", "query": "产品规格", "product_ref": metadata["product_scope"][0]})
     assert result.status == "success" and result.data.retrieval_mode == "bm25"
-    assert result.source.adapter == "knowledge-bm25-v1" and result.source.record_ids == result.data_refs
+    assert result.source.adapter == "knowledge-index-v1" and result.source.record_ids == result.data_refs
     assert result.data.documents[0].citation["source_checksum"] and result.data.documents[0].citation["heading_path"] == []
     assert tools.call("search_knowledge", {"customer_ref": "another-customer", "query": "产品规格"}).error_code == "FORBIDDEN"
 

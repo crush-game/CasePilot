@@ -15,4 +15,5 @@ artifacts/
 *.log
 output/playwright/
 output/evaluation/
+output/p06/
 frontend/.playwright-cli/

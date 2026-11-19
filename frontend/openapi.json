@@ -1820,7 +1820,10 @@
           },
           "retrieval_mode": {
             "type": "string",
-            "const": "bm25",
+            "enum": [
+              "bm25",
+              "hybrid"
+            ],
             "title": "Retrieval Mode",
             "default": "bm25"
           }
@@ -1990,7 +1993,10 @@
           },
           "retrieval_mode": {
             "type": "string",
-            "const": "bm25",
+            "enum": [
+              "bm25",
+              "hybrid"
+            ],
             "title": "Retrieval Mode"
           },
           "product_scope": {
@@ -3033,13 +3039,27 @@
           },
           "retrieval_mode": {
             "type": "string",
-            "const": "bm25",
+            "enum": [
+              "bm25",
+              "hybrid"
+            ],
             "title": "Retrieval Mode",
             "default": "bm25"
           },
           "score": {
             "type": "number",
             "title": "Score"
+          },
+          "rerank_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rerank Score"
           }
         },
         "type": "object",
@@ -3071,7 +3091,8 @@
           "unavailable_reasons",
           "data_source",
           "retrieval_mode",
-          "score"
+          "score",
+          "rerank_score"
         ],
         "title": "SearchHit"
       },
@@ -3153,6 +3174,26 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 20
+          },
+          "retrieval_mode": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "bm25",
+                  "hybrid"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Mode"
+          },
+          "rerank": {
+            "type": "boolean",
+            "title": "Rerank",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -3188,7 +3229,10 @@
           },
           "retrieval_mode": {
             "type": "string",
-            "const": "bm25",
+            "enum": [
+              "bm25",
+              "hybrid"
+            ],
             "title": "Retrieval Mode",
             "default": "bm25"
           },
@@ -3197,6 +3241,51 @@
             "const": "mock",
             "title": "Data Source",
             "default": "mock"
+          },
+          "embedding_profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Embedding Profile Id"
+          },
+          "inference_mode": {
+            "type": "string",
+            "enum": [
+              "none",
+              "contract",
+              "real"
+            ],
+            "title": "Inference Mode",
+            "default": "none"
+          },
+          "rerank_mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "contract",
+              "real"
+            ],
+            "title": "Rerank Mode",
+            "default": "off"
+          },
+          "provider_usage": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Provider Usage"
+          },
+          "retrieval_details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Retrieval Details"
           }
         },
         "type": "object",
@@ -3206,7 +3295,12 @@
           "index_version",
           "tokenizer",
           "retrieval_mode",
-          "data_source"
+          "data_source",
+          "embedding_profile_id",
+          "inference_mode",
+          "rerank_mode",
+          "provider_usage",
+          "retrieval_details"
         ],
         "title": "SearchResult"
       },

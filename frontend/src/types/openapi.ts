@@ -557,9 +557,9 @@ export interface components {
             /**
              * Retrieval Mode
              * @default bm25
-             * @constant
+             * @enum {string}
              */
-            retrieval_mode: "bm25";
+            retrieval_mode: "bm25" | "hybrid";
         };
         /** CloseInput */
         CloseInput: {
@@ -625,9 +625,9 @@ export interface components {
             data_source: "mock";
             /**
              * Retrieval Mode
-             * @constant
+             * @enum {string}
              */
-            retrieval_mode: "bm25";
+            retrieval_mode: "bm25" | "hybrid";
             /** Product Scope */
             product_scope: string[];
             /** Firmware Versions */
@@ -1053,11 +1053,13 @@ export interface components {
             /**
              * Retrieval Mode
              * @default bm25
-             * @constant
+             * @enum {string}
              */
-            retrieval_mode: "bm25";
+            retrieval_mode: "bm25" | "hybrid";
             /** Score */
             score: number;
+            /** Rerank Score */
+            rerank_score: number | null;
         };
         /** SearchQuery */
         SearchQuery: {
@@ -1078,6 +1080,13 @@ export interface components {
              * @default 20
              */
             limit: number;
+            /** Retrieval Mode */
+            retrieval_mode?: ("bm25" | "hybrid") | null;
+            /**
+             * Rerank
+             * @default false
+             */
+            rerank: boolean;
         };
         /** SearchResult */
         SearchResult: {
@@ -1092,15 +1101,37 @@ export interface components {
             /**
              * Retrieval Mode
              * @default bm25
-             * @constant
+             * @enum {string}
              */
-            retrieval_mode: "bm25";
+            retrieval_mode: "bm25" | "hybrid";
             /**
              * Data Source
              * @default mock
              * @constant
              */
             data_source: "mock";
+            /** Embedding Profile Id */
+            embedding_profile_id: string | null;
+            /**
+             * Inference Mode
+             * @default none
+             * @enum {string}
+             */
+            inference_mode: "none" | "contract" | "real";
+            /**
+             * Rerank Mode
+             * @default off
+             * @enum {string}
+             */
+            rerank_mode: "off" | "contract" | "real";
+            /** Provider Usage */
+            provider_usage: {
+                [key: string]: unknown;
+            }[];
+            /** Retrieval Details */
+            retrieval_details: {
+                [key: string]: unknown;
+            };
         };
         /** SourceView */
         SourceView: {

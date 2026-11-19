@@ -41,6 +41,8 @@ class KnowledgeArgs(BoundArgs):
     region: str | None = Field(default=None, min_length=1, max_length=120)
     channel: str | None = Field(default=None, min_length=1, max_length=120)
     as_of: Timestamp | None = None
+    retrieval_mode: Literal["bm25", "hybrid"] | None = None
+    rerank: bool = False
 
 
 class FeedbackArgs(BoundArgs):
@@ -87,8 +89,13 @@ class KnowledgeData(Contract):
     documents: list[KnowledgeRecord] = Field(default_factory=list)
     conflicts: list[list[str]] = Field(default_factory=list)
     missing_fields: list[str] = Field(default_factory=list)
-    retrieval_mode: Literal["fixture", "bm25"] = "fixture"
+    retrieval_mode: Literal["fixture", "bm25", "hybrid"] = "fixture"
     index_version: int | None = None
+    embedding_profile_id: str | None = None
+    inference_mode: Literal["none", "contract", "real"] = "none"
+    rerank_mode: Literal["off", "contract", "real"] = "off"
+    provider_usage: list[dict] = Field(default_factory=list)
+    retrieval_details: dict = Field(default_factory=dict)
 
 
 class FeedbackRecord(Contract):

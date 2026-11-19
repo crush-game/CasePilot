@@ -18,7 +18,8 @@ from app.config import get_settings
 from app.knowledge.index import index_state, publication_lock, refresh_snapshot
 from app.knowledge.text import IngestionFailure, TOKENIZER, checksum, split_document
 from app.repositories.database import get_engine
-from app.repositories.models import IngestionJob, KBChunk, KBDocument
+from app.repositories.models import IngestionJob, KBChunk, KBDocument, KBEmbedding, KBIndexState
+from app.providers.ledger import ProviderFailure
 from app.services.knowledge import MAX_ATTEMPTS, audit
 from app.workers.faults import failpoint
 
@@ -34,6 +35,8 @@ class IngestionContext:
     token: UUID
     connection: object
     engine: object
+    embedding_profile_id: UUID | None = None
+    provider_session: object = None
 
     def fenced(self, db):
         if self.connection.closed:
@@ -80,14 +83,21 @@ def claim(connection, candidate):
         job.lease_token, job.lease_until = uuid4(), now + timedelta(seconds=get_settings().ingestion_lease_seconds)
         job.error_code, job.retryable = None, False
         job.history_json = [*job.history_json, {"event": "claimed", "attempt": job.attempt, "at": now.isoformat()}]
+        current_index = db.get(KBIndexState, 1)
+        profile_id = current_index.active_profile_id if current_index else None
         db.commit()
-        return IngestionContext(job.id, doc.id, job.lease_token, connection, engine), doc
+        return IngestionContext(job.id, doc.id, job.lease_token, connection, engine, profile_id), doc
 
 
-def publish(ctx, parsed):
+def publish(ctx, parsed, embedded=None):
     with Session(ctx.engine) as db:
         publication_lock(db)
         doc, job, now = ctx.fenced(db)
+        state = index_state(db)
+        if state.active_profile_id != ctx.embedding_profile_id:
+            raise IngestionFailure("EMBEDDING_PROFILE_CHANGED", retryable=True)
+        if ctx.embedding_profile_id is not None and embedded is None:
+            raise IngestionFailure("EMBEDDING_REQUIRED", retryable=True)
         latest = db.scalar(select(func.max(KBDocument.version)).where(
             KBDocument.doc_key == doc.doc_key, KBDocument.index_version.is_not(None)))
         if latest is not None and doc.version <= latest:
@@ -105,11 +115,16 @@ def publish(ctx, parsed):
                     "parent_start_line": chunk.parent_start_line, "parent_end_line": chunk.parent_end_line,
                     "previous_ref": f"kb:{ids[ordinal - 1].hex}" if ordinal else None,
                     "next_ref": f"kb:{ids[ordinal + 1].hex}" if ordinal + 1 < len(ids) else None}))
-        state = index_state(db)
         state.version += 1
         doc.status, doc.revision, doc.index_version = "active", doc.revision + 1, state.version
+        doc.retrieval_mode = "hybrid" if ctx.embedding_profile_id else "bm25"
         audit(doc, "published", index_version=state.version, chunk_count=len(parsed))
         db.flush()
+        if embedded:
+            dimensions, values = embedded
+            for chunk_id, value in values.items():
+                db.add(KBEmbedding(chunk_id=chunk_id, profile_id=ctx.embedding_profile_id, dimensions=dimensions, **value))
+            db.flush()
         refresh_snapshot(db, state)
         # 构建快照后再次检查期限；过期的慢执行整体回滚，不发布半份索引。
         ctx.connection.execute("SELECT 1")
@@ -137,7 +152,7 @@ def mark_failed(ctx, error):
         db.commit()
 
 
-def run_once(job_id=None):
+def run_once(job_id=None, provider_session=None):
     with Session(get_engine()) as db:
         query = select(IngestionJob.id, IngestionJob.document_id).where(or_(
             IngestionJob.status == "queued", and_(IngestionJob.status == "running", IngestionJob.lease_until <= func.clock_timestamp())))
@@ -155,6 +170,7 @@ def run_once(job_id=None):
             if claimed == "exhausted":
                 return True
             ctx, doc = claimed
+            ctx.provider_session = provider_session
             try:
                 failpoint("after_ingestion_claim")
                 if checksum(doc.original_bytes) != doc.checksum:
@@ -162,12 +178,15 @@ def run_once(job_id=None):
                 parsed = split_document(doc.original_bytes, doc.filename)
                 ctx.advance("chunk")
                 ctx.advance("index")
+                from app.knowledge.hybrid import prepare_document
+                embedded = prepare_document(ctx, parsed)
                 failpoint("before_ingestion_publish")
-                publish(ctx, parsed)
+                publish(ctx, parsed, embedded)
             except IngestionLost:
                 pass
             except Exception as exc:
-                error = exc if isinstance(exc, IngestionFailure) else IngestionFailure("INGESTION_FAILED", retryable=True)
+                error = exc if isinstance(exc, IngestionFailure) else IngestionFailure(
+                    exc.code if isinstance(exc, ProviderFailure) else "INGESTION_FAILED", retryable=True)
                 try:
                     mark_failed(ctx, error)
                 except (IngestionLost, SQLAlchemyError, psycopg.Error):
