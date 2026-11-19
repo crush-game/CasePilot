@@ -55,3 +55,12 @@ def business_user(user: CurrentUser) -> AppUser:
 
 
 BusinessUser = Annotated[AppUser, Depends(business_user)]
+
+
+def knowledge_admin(user: CurrentUser) -> AppUser:
+    if user.role != Role.KNOWLEDGE_ADMIN:
+        raise AppError(403, "ROLE_FORBIDDEN", "当前账号没有知识管理权限")
+    return user
+
+
+KnowledgeAdmin = Annotated[AppUser, Depends(knowledge_admin)]

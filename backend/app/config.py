@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     cookie_secure: bool = False
     worker_lease_seconds: int = Field(default=30, ge=2, le=300)
     worker_poll_seconds: float = Field(default=1, ge=0.1, le=10)
+    ingestion_lease_seconds: int = Field(default=60, ge=2, le=300)
     run_timeout_seconds: int = Field(default=300, ge=1, le=3600)
     max_budget_epochs: int = Field(default=5, ge=1, le=20)
     max_mock_steps: int = Field(default=24, ge=1, le=100)

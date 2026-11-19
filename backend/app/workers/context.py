@@ -33,6 +33,7 @@ class ExecutionContext:
     epoch: int
     epoch_started_at: datetime
     lost: threading.Event = field(default_factory=threading.Event)
+    checkpoint_io_lock: object = field(default_factory=threading.Lock)
 
     def elapsed(self):
         return max(0, (datetime.now(timezone.utc) - self.epoch_started_at).total_seconds())
@@ -46,9 +47,11 @@ class ExecutionContext:
 
     def fenced(self, db: Session):
         # 锁顺序统一为 ticket→run→task；同一独占连接仍须持有检查点锁。
-        if self.connection.closed or self.lost.is_set():
-            raise LeaseLost("检查点连接已关闭")
-        self.connection.execute("SELECT 1")
+        # Saver 后台写入会进入 pipeline；连接探针须共享其临界区，不能插入 pipeline。
+        with self.checkpoint_io_lock:
+            if self.connection.closed or self.lost.is_set():
+                raise LeaseLost("检查点连接已关闭")
+            self.connection.execute("SELECT 1")
         ticket = db.scalar(select(Ticket).where(Ticket.id == self.ticket_id).with_for_update())
         run = db.scalar(select(Run).where(Run.id == self.run_id).with_for_update())
         task = db.scalar(select(ExecutionTask).where(ExecutionTask.id == self.task_id).with_for_update())

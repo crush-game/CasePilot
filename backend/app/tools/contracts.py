@@ -38,6 +38,9 @@ class KnowledgeArgs(BoundArgs):
     query: str = Field(min_length=1, max_length=500)
     product_ref: Ref | None = None
     firmware_version: Ref | None = None
+    region: str | None = Field(default=None, min_length=1, max_length=120)
+    channel: str | None = Field(default=None, min_length=1, max_length=120)
+    as_of: Timestamp | None = None
 
 
 class FeedbackArgs(BoundArgs):
@@ -73,16 +76,19 @@ class DomainArgs(WifiArgs):
 
 class KnowledgeRecord(Contract):
     record_id: Ref
-    product_ref: Ref
-    firmware_version: Ref
+    product_ref: str
+    firmware_version: str
     policy_key: Ref
     text: str
+    citation: dict | None = None
 
 
 class KnowledgeData(Contract):
     documents: list[KnowledgeRecord] = Field(default_factory=list)
     conflicts: list[list[str]] = Field(default_factory=list)
     missing_fields: list[str] = Field(default_factory=list)
+    retrieval_mode: Literal["fixture", "bm25"] = "fixture"
+    index_version: int | None = None
 
 
 class FeedbackRecord(Contract):

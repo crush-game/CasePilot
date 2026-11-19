@@ -1,0 +1,11 @@
+{
+  "doc_key": "pilot-connection-guide",
+  "version": 1,
+  "title": "PILOT-01 模拟连接指南",
+  "source_type": "manual",
+  "data_source": "mock",
+  "product_scope": ["PILOT-01"],
+  "firmware_versions": ["1.0"],
+  "regions": ["*"],
+  "channels": ["*"]
+}

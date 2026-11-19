@@ -70,5 +70,5 @@ class ToolRegistry:
         schema = ToolResult[spec.output_schema] if spec else ToolResult[Contract]
         return schema(status=status, data_source="mock", data_refs=refs, data=data,
                       error_code=code, retryable=code in {ErrorCode.TIMEOUT, ErrorCode.RATE_LIMITED},
-                      source=Source(data_source="mock", adapter="mock-fixtures-v1", record_ids=refs, query=query),
+                      source=Source(data_source="mock", adapter=getattr(self.adapter, "adapter_name", "mock-fixtures-v1"), record_ids=refs, query=query),
                       fetched_at=datetime.now(timezone.utc))

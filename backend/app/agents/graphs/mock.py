@@ -32,6 +32,8 @@ class CaseState(TypedDict, total=False):
 
 
 def build_graph(saver, ctx):
+    ctx.checkpoint_io_lock = saver.lock
+
     def parse_request(state):
         return {}
 

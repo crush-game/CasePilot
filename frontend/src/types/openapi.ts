@@ -274,6 +274,160 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/knowledge/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Documents */
+        get: operations["list_documents_api_v1_knowledge_documents_get"];
+        put?: never;
+        /** Upload Document */
+        post: operations["upload_document_api_v1_knowledge_documents_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/documents/{document_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Document */
+        get: operations["get_document_api_v1_knowledge_documents__document_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/documents/{document_id}/source": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Source */
+        get: operations["source_api_v1_knowledge_documents__document_id__source_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/documents/{document_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive */
+        post: operations["archive_api_v1_knowledge_documents__document_id__archive_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Jobs */
+        get: operations["list_jobs_api_v1_knowledge_jobs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/jobs/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Job */
+        get: operations["get_job_api_v1_knowledge_jobs__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/jobs/{job_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry */
+        post: operations["retry_api_v1_knowledge_jobs__job_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Search */
+        post: operations["search_api_v1_knowledge_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge/chunks/{chunk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Citation */
+        get: operations["citation_api_v1_knowledge_chunks__chunk_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -327,6 +481,86 @@ export interface components {
             /** Human Task Id */
             human_task_id?: string | null;
         };
+        /** Body_upload_document_api_v1_knowledge_documents_post */
+        Body_upload_document_api_v1_knowledge_documents_post: {
+            /** File */
+            file: string;
+            /** Metadata */
+            metadata: string;
+        };
+        /** Citation */
+        Citation: {
+            /** Ref */
+            ref: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Doc Key */
+            doc_key: string;
+            /** Document Version */
+            document_version: number;
+            /** Document Status */
+            document_status: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename: string;
+            /** Source Type */
+            source_type: string;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Text */
+            text: string;
+            /** Heading Path */
+            heading_path: string[];
+            /** Start Line */
+            start_line: number;
+            /** End Line */
+            end_line: number;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Scope */
+            product_scope: string[];
+            /** Firmware Versions */
+            firmware_versions: string[];
+            /** Regions */
+            regions: string[];
+            /** Channels */
+            channels: string[];
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** Usable */
+            usable: boolean;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Unavailable Reasons */
+            unavailable_reasons: string[];
+            /**
+             * Data Source
+             * @default mock
+             * @constant
+             */
+            data_source: "mock";
+            /**
+             * Retrieval Mode
+             * @default bm25
+             * @constant
+             */
+            retrieval_mode: "bm25";
+        };
         /** CloseInput */
         CloseInput: {
             /**
@@ -343,6 +577,80 @@ export interface components {
              * @enum {string}
              */
             outcome: "resolved" | "unresolved";
+        };
+        /** DocumentActionResult */
+        DocumentActionResult: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Revision */
+            revision: number;
+            /** Status */
+            status: string;
+        };
+        /** DocumentList */
+        DocumentList: {
+            /** Items */
+            items: components["schemas"]["DocumentView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Has More */
+            has_more: boolean;
+        };
+        /** DocumentView */
+        DocumentView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Doc Key */
+            doc_key: string;
+            /** Version */
+            version: number;
+            /** Revision */
+            revision: number;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename: string;
+            /** Source Type */
+            source_type: string;
+            /**
+             * Data Source
+             * @constant
+             */
+            data_source: "mock";
+            /**
+             * Retrieval Mode
+             * @constant
+             */
+            retrieval_mode: "bm25";
+            /** Product Scope */
+            product_scope: string[];
+            /** Firmware Versions */
+            firmware_versions: string[];
+            /** Regions */
+            regions: string[];
+            /** Channels */
+            channels: string[];
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** Status */
+            status: string;
+            /** Checksum */
+            checksum: string;
+            /** Index Version */
+            index_version: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** EventList */
         EventList: {
@@ -463,6 +771,90 @@ export interface components {
             /** Expected Version */
             expected_version: number;
             priority: components["schemas"]["Priority"];
+        };
+        /** IngestionCreated */
+        IngestionCreated: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Already Exists */
+            already_exists: boolean;
+        };
+        /** JobActionResult */
+        JobActionResult: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Revision */
+            revision: number;
+            /** Status */
+            status: string;
+        };
+        /** JobList */
+        JobList: {
+            /** Items */
+            items: components["schemas"]["JobView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Has More */
+            has_more: boolean;
+        };
+        /** JobView */
+        JobView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Status */
+            status: string;
+            /** Stage */
+            stage: string;
+            /** Attempt */
+            attempt: number;
+            /** Revision */
+            revision: number;
+            /** Error Code */
+            error_code: string | null;
+            /** Retryable */
+            retryable: boolean;
+            /** Index Version */
+            index_version: number | null;
+            /** History Json */
+            history_json: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** KnowledgeAction */
+        KnowledgeAction: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Reason */
+            reason: string;
         };
         /** LoginInput */
         LoginInput: {
@@ -591,6 +983,144 @@ export interface components {
             nodes?: {
                 [key: string]: unknown;
             }[];
+        };
+        /** SearchHit */
+        SearchHit: {
+            /** Ref */
+            ref: string;
+            /**
+             * Chunk Id
+             * Format: uuid
+             */
+            chunk_id: string;
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Doc Key */
+            doc_key: string;
+            /** Document Version */
+            document_version: number;
+            /** Document Status */
+            document_status: string;
+            /** Title */
+            title: string;
+            /** Filename */
+            filename: string;
+            /** Source Type */
+            source_type: string;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Text */
+            text: string;
+            /** Heading Path */
+            heading_path: string[];
+            /** Start Line */
+            start_line: number;
+            /** End Line */
+            end_line: number;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Scope */
+            product_scope: string[];
+            /** Firmware Versions */
+            firmware_versions: string[];
+            /** Regions */
+            regions: string[];
+            /** Channels */
+            channels: string[];
+            /** Effective From */
+            effective_from: string | null;
+            /** Effective To */
+            effective_to: string | null;
+            /** Usable */
+            usable: boolean;
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Unavailable Reasons */
+            unavailable_reasons: string[];
+            /**
+             * Data Source
+             * @default mock
+             * @constant
+             */
+            data_source: "mock";
+            /**
+             * Retrieval Mode
+             * @default bm25
+             * @constant
+             */
+            retrieval_mode: "bm25";
+            /** Score */
+            score: number;
+        };
+        /** SearchQuery */
+        SearchQuery: {
+            /** Product Ref */
+            product_ref?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Region */
+            region?: string | null;
+            /** Channel */
+            channel?: string | null;
+            /** As Of */
+            as_of?: string | null;
+            /** Query */
+            query: string;
+            /**
+             * Limit
+             * @default 20
+             */
+            limit: number;
+        };
+        /** SearchResult */
+        SearchResult: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /** Missing Fields */
+            missing_fields: string[];
+            /** Index Version */
+            index_version: number;
+            /** Tokenizer */
+            tokenizer: string;
+            /**
+             * Retrieval Mode
+             * @default bm25
+             * @constant
+             */
+            retrieval_mode: "bm25";
+            /**
+             * Data Source
+             * @default mock
+             * @constant
+             */
+            data_source: "mock";
+        };
+        /** SourceView */
+        SourceView: {
+            /**
+             * Document Id
+             * Format: uuid
+             */
+            document_id: string;
+            /** Filename */
+            filename: string;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Text */
+            text: string;
+            /**
+             * Redacted
+             * @default true
+             * @constant
+             */
+            redacted: true;
         };
         /** TicketCreate */
         TicketCreate: {
@@ -1384,6 +1914,342 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_documents_api_v1_knowledge_documents_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                status?: ("pending" | "active" | "failed" | "archived" | "superseded") | null;
+                doc_key?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_document_api_v1_knowledge_documents_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "idempotency-key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_document_api_v1_knowledge_documents_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestionCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_document_api_v1_knowledge_documents__document_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    source_api_v1_knowledge_documents__document_id__source_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_api_v1_knowledge_documents__document_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                document_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentActionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jobs_api_v1_knowledge_jobs_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                cursor?: string | null;
+                status?: ("queued" | "running" | "succeeded" | "failed" | "cancelled") | null;
+                document_id?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_job_api_v1_knowledge_jobs__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_api_v1_knowledge_jobs__job_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeAction"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobActionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_api_v1_knowledge_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SearchQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    citation_api_v1_knowledge_chunks__chunk_id__get: {
+        parameters: {
+            query?: {
+                product_ref?: string | null;
+                firmware_version?: string | null;
+                region?: string | null;
+                channel?: string | null;
+                as_of?: string | null;
+            };
+            header?: never;
+            path: {
+                chunk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Citation"];
                 };
             };
             /** @description Validation Error */

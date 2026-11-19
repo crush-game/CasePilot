@@ -25,7 +25,7 @@ Pop-Location
 
 首次建库由 Docker 初始化脚本创建 vector 扩展和独立测试库；已有卷不会重复执行初始化脚本。业务迁移使用 `business` schema，并在事务内串行升级；重复 migrate 保留现有数据。迁移不执行官方 Saver setup，不自动降级或删除数据。不要为修复迁移删除数据库卷。
 
-创建账号时交互输入并确认密码（10～128 字符，不回显），账号名使用 3～64 位小写字母、数字、下划线、点或短横线。已有账号不会被覆盖。`business` 可处理内部工单池；`knowledge_admin` 可登录，但不能访问工单接口，知识管理能力在后续阶段开放。仓库无默认明文密码。
+创建账号时交互输入并确认密码（10～128 字符，不回显），账号名使用 3～64 位小写字母、数字、下划线、点或短横线。已有账号不会被覆盖。`business` 可处理内部工单池；`knowledge_admin` 通过 P05 接口管理文档、任务和失效，不能访问工单接口。当前前端工作台仍以工单处理为主，知识管理先使用接口。仓库无默认明文密码。
 
 验收脚本自动迁移独立测试库，并以随机命名的空数据库测试首次迁移，结束后仅清理其自行创建的临时库；测试不清空开发库。P00 命令 `scripts/verify_p00.py` 保留兼容入口，现同样执行完整后端回归。
 
@@ -144,6 +144,62 @@ npm run test:e2e
 12 个独立种子场景分别放在 `fixtures/runtime/`；隐藏标注在 `fixtures/evaluation/`，仅评测入口执行结束后读取。公开动作脚本驱动回放，工具/模型仅接收当前允许的数据；这是确定性契约检查，不是自主 Agent 或真实模型效果评测。S11/S12 另执行 PostgreSQL 和独立 Worker 的真实幂等、迟到结果、预算及强制终止/恢复检查。此命令需要开发依赖和可用测试库；不会创建生产任务或调用外部模型。
 
 报告保存为 `output/evaluation/smoke.json`（Git 忽略），包含脱敏实际轨迹和检查结论，不保存隐藏答案。`fixtures/README.md` 说明场景族和目录边界；当前本地同账号不做 OS 级权限隔离，部署时 Agent 仅挂载 runtime，评测进程另挂载 evaluation。
+
+## P05 文档入库、版本与 BM25
+
+新增迁移为 `0003_knowledge`，只增加 kb_documents、kb_chunks、ingestion_jobs、kb_index_state。升级现有环境时先安装锁文件中的新增轻量依赖，再执行迁移；不用删除数据库卷。入库由独立 Worker 处理，不在 HTTP 请求中执行模型或索引构建：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r backend/requirements.lock
+.\.venv\Scripts\python.exe -m app.manage migrate
+.\.venv\Scripts\python.exe -m app.manage create-user --login librarian --role knowledge_admin
+.\.venv\Scripts\python.exe -m app.workers.ingestion
+# 排查单个任务可另行执行：
+.\.venv\Scripts\python.exe -m app.workers.ingestion --once --job-id <job_uuid>
+```
+
+`POST /api/v1/knowledge/documents` 接收 multipart：`file` 为 UTF-8 `.md`/`.txt`，`metadata` 为 JSON 字符串，并携带 Idempotency-Key 和 CSRF。文件上限 1 MiB，单行最多 4096 字符、最多 2000 片段。原始字节和 SHA256 存数据库，服务不按文件名读取服务器路径；解析器可能将 Windows 上传文件名标准化为 basename。文件上传返回 202 和 document_id/job_id，索引提交前 status=pending，不可搜索。
+
+元数据必须声明 doc_key、正整数 version、title、product_scope、firmware_versions、regions、channels；范围数组不可为空，只有明确通用时使用 `["*"]`。source_type 支持 manual/faq/policy，data_source 固定 mock；有效期可选，时间必须带时区，结束时间不包含在有效区间中。样例见 `fixtures/knowledge/`。
+
+以下为 PowerShell 7 上传示例，需要 API 已启动；口令只在当前会话内用于登录，不写文件：
+
+```powershell
+$kbAccount = Read-Host '知识管理员账号'
+$kbPassword = Read-Host '密码' -MaskInput
+$kbLoginBody = @{ login = $kbAccount; password = $kbPassword } | ConvertTo-Json -Compress
+$kbSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+$kbLogin = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/auth/login' -ContentType 'application/json' -Body $kbLoginBody -WebSession $kbSession
+$kbPassword = $null
+$kbLoginBody = $null
+$kbHeaders = @{ 'X-CSRF-Token' = $kbLogin.csrf_token; 'Idempotency-Key' = [guid]::NewGuid().ToString() }
+$kbCreated = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/documents' -WebSession $kbSession -Headers $kbHeaders -Form @{ file = Get-Item -LiteralPath 'fixtures/knowledge/connection-guide.md'; metadata = Get-Content -LiteralPath 'fixtures/knowledge/metadata.json' -Raw }
+Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/v1/knowledge/jobs/$($kbCreated.job_id)" -WebSession $kbSession
+$kbSearch = @{ query = 'E_WIFI_401'; product_ref = 'PILOT-01'; firmware_version = '1.0' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/search' -WebSession $kbSession -Headers $kbHeaders -ContentType 'application/json' -Body $kbSearch
+```
+
+管理与读取接口：
+
+| 接口 | 用途与权限 |
+|---|---|
+| `GET /knowledge/documents`、`GET /knowledge/documents/{id}` | knowledge_admin 查看文档版本、revision、状态与 checksum；列表支持 cursor/limit、status/doc_key |
+| `GET /knowledge/documents/{id}/source` | knowledge_admin 查看脱敏原文预览；source_checksum 对应留存原始字节，预览不是原始字节下载 |
+| `GET /knowledge/jobs`、`GET /knowledge/jobs/{id}` | knowledge_admin 查看 queued/running/succeeded/failed/cancelled、阶段、attempt/revision、error_code/retryable 与历史；列表支持 status/document_id |
+| `POST /knowledge/jobs/{id}/retry` | knowledge_admin 对可重试失败任务提交 action_id、expected_revision、reason；重复动作幂等，旧版本409，至多5次执行尝试 |
+| `POST /knowledge/documents/{id}/archive` | knowledge_admin 提交 action_id、expected_revision、reason；立即取消检索资格，保留版本/原文/引用并取消未完成任务 |
+| `POST /knowledge/search` | business/knowledge_admin；query、可选 product_ref/firmware_version/region/channel/as_of、limit≤20 |
+| `GET /knowledge/chunks/{chunk_id}` | business/knowledge_admin；可带上述适用条件，返回回源信息及当前 usable/missing_fields/unavailable_reasons |
+
+除只读 GET 外，写入和 POST 检索都沿用 Cookie/CSRF。ID 均为 UUID，列表后续请求保持筛选不变。业务角色只能检索和读取引用，不能管理文档/任务/原文预览。缺失条件返回 missing_fields，特定范围文档不会在条件未知时被当作适用；历史引用仍可回源，archived/superseded 或过期时 usable=false。
+
+同一 doc_key/version 的内容和适用范围不可覆盖；重复相同内容复用原任务，变更请上传新版本。新版本发布成功才把旧活动版本改为 superseded；切块、替换和索引快照同事务提交，任何构建失败保留旧版本。无效 UTF-8、空内容等不可修复源文件失败应上传新版本；暂时处理失败可显式重试。等待行锁后重新读取任务 revision，防止并发重试同时使用旧状态。入库任务每阶段续租，默认60秒；进程崩溃后由同一 Worker 扫描过期任务恢复，旧进程仍持运行锁时不会并发领取，归档后的迟到结果不能重新发布。
+
+当前检索为 `retrieval_mode=bm25`，数据标记 mock。`zh-bigram-v1` 使用汉字单字/二元词项及完整型号/错误码，不是词典分词；k1=1.2、b=0.75，正值 IDF 形式可对照 [Lucene BM25 说明](https://lucene.apache.org/core/10_3_1/core/org/apache/lucene/search/similarities/BM25Similarity.html)。评分对象为片段及标题路径，分数不是置信度。快照保存于 PostgreSQL，每次检索核对发布版本、算法/分词版本、语料指纹和 checksum，不一致即重建；状态过滤以数据库为准。该实现面向小规模原型，尚无真实 embedding、RRF 或重排序效果结论。
+
+`DatabaseKnowledgeAdapter` 将同一检索服务接到 P04 白名单工具，工具结果带 BM25 模式、索引版本和完整引用。为保持旧检查点和工作台闭环兼容，mock-v1 图仍使用原固定资料；P07 再让知识调查根据事实调用已发布资料。P05 不把固定 Mock 草稿说成基于新文档生成的回答。
+
+验收仍运行 `scripts/verify_backend.py`，包含 MD/TXT、引用、失效、坏文件、原子发布、并发重试/版本、快照重建、独立进程终止与租约恢复。公开 API 更新后需运行 `npm run api:generate` 与 `npm run api:check`。
 
 ## 提交与阶段
 

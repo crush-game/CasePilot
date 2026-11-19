@@ -3,7 +3,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint,
-    Identity, Index, Integer, MetaData, String, Text, UniqueConstraint, func, text,
+    Identity, Index, Integer, LargeBinary, MetaData, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -12,7 +12,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0002_runtime"
+SCHEMA_VERSION = "0003_knowledge"
 
 
 def choices(column, enum):
@@ -268,3 +268,92 @@ class ToolExecution(Base):
     result_refs: Mapped[dict] = mapped_column(JSONB)
     error_code: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KBDocument(Base):
+    __tablename__ = "kb_documents"
+    __table_args__ = (
+        UniqueConstraint("doc_key", "version", name="uq_kb_documents_key_version"),
+        CheckConstraint("version >= 1 AND revision >= 1", name="versions"),
+        CheckConstraint("status IN ('pending','active','failed','archived','superseded')", name="status"),
+        CheckConstraint("effective_to IS NULL OR effective_from IS NULL OR effective_to > effective_from", name="effective_range"),
+        CheckConstraint("data_source = 'mock' AND retrieval_mode = 'bm25'", name="mode"),
+        Index("uq_kb_documents_active_key", "doc_key", unique=True, postgresql_where=text("status = 'active'")),
+        Index("ix_kb_documents_status_created", "status", "created_at", "id"),
+        Index("ix_kb_documents_product_scope", "product_scope", postgresql_using="gin"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    doc_key: Mapped[str] = mapped_column(String(120))
+    version: Mapped[int] = mapped_column(Integer)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    title: Mapped[str] = mapped_column(String(200))
+    filename: Mapped[str] = mapped_column(String(128))
+    source_type: Mapped[str] = mapped_column(String(32))
+    data_source: Mapped[str] = mapped_column(String(16), default="mock")
+    retrieval_mode: Mapped[str] = mapped_column(String(16), default="bm25")
+    product_scope: Mapped[list] = mapped_column(JSONB)
+    firmware_versions: Mapped[list] = mapped_column(JSONB)
+    regions: Mapped[list] = mapped_column(JSONB)
+    channels: Mapped[list] = mapped_column(JSONB)
+    effective_from: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    effective_to: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(32), default="pending")
+    checksum: Mapped[str] = mapped_column(String(64))
+    original_bytes: Mapped[bytes] = mapped_column(LargeBinary)
+    index_version: Mapped[int | None] = mapped_column(BigInteger)
+    created_by: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    audit_json: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KBChunk(Base):
+    __tablename__ = "kb_chunks"
+    __table_args__ = (
+        UniqueConstraint("document_id", "ordinal", name="uq_kb_chunks_document_ordinal"),
+        CheckConstraint("ordinal >= 0 AND start_line >= 1 AND end_line >= start_line", name="positions"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("business.kb_documents.id"), index=True)
+    ordinal: Mapped[int] = mapped_column(Integer)
+    heading_path: Mapped[list] = mapped_column(JSONB)
+    text: Mapped[str] = mapped_column(Text)
+    start_line: Mapped[int] = mapped_column(Integer)
+    end_line: Mapped[int] = mapped_column(Integer)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    metadata_json: Mapped[dict] = mapped_column(JSONB)
+
+
+class IngestionJob(Base):
+    __tablename__ = "ingestion_jobs"
+    __table_args__ = (
+        UniqueConstraint("document_id", name="uq_ingestion_jobs_document"),
+        CheckConstraint("status IN ('queued','running','succeeded','failed','cancelled')", name="status"),
+        CheckConstraint("attempt >= 0 AND revision >= 1", name="versions"),
+        Index("ix_ingestion_jobs_status_created", "status", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    document_id: Mapped[UUID] = mapped_column(ForeignKey("business.kb_documents.id"))
+    status: Mapped[str] = mapped_column(String(32), default="queued")
+    stage: Mapped[str] = mapped_column(String(32), default="queued")
+    attempt: Mapped[int] = mapped_column(Integer, default=0)
+    revision: Mapped[int] = mapped_column(Integer, default=1)
+    error_code: Mapped[str | None] = mapped_column(String(64))
+    retryable: Mapped[bool] = mapped_column(Boolean, default=False)
+    lease_token: Mapped[UUID | None] = mapped_column()
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    index_version: Mapped[int | None] = mapped_column(BigInteger)
+    history_json: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KBIndexState(Base):
+    __tablename__ = "kb_index_state"
+    __table_args__ = (CheckConstraint("id = 1 AND version >= 0", name="singleton"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    version: Mapped[int] = mapped_column(BigInteger, default=0)
+    snapshot_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    snapshot_checksum: Mapped[str] = mapped_column(String(64), default="")

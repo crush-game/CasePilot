@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
 from datetime import timedelta
 import json
 import os
@@ -391,6 +392,45 @@ def test_lost_checkpoint_connection_stops_old_execution(api, test_engine):
     expire_lease(test_engine, run_id)
     child_worker(run_id)
     assert detail(client, created["ticket_id"])["status"] == "WAITING_HUMAN"
+
+
+def test_execution_probe_waits_for_official_saver_connection_lock(api):
+    client, _, _ = api
+    created = create(client)
+    run_id = UUID(created["run_id"])
+    with checkpoint_connection() as connection:
+        assert try_run_lock(connection, run_id)
+        ctx, state, _, _, _ = claim_task(connection, eligible_tasks(run_id)[0])
+        saver = PostgresSaver(connection)
+        build_graph(saver, ctx)
+        busy, entered = threading.Event(), threading.Event()
+
+        class GuardedConnection:
+            @property
+            def closed(self):
+                return connection.closed
+
+            def execute(self, *args):
+                assert not busy.is_set(), "执行权探针不得插入 Saver 的连接临界区"
+                return connection.execute(*args)
+
+        ctx.connection = GuardedConnection()
+
+        def probe():
+            entered.set()
+            return ctx.control(state)
+
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with saver.lock:
+                busy.set()
+                future = pool.submit(probe)
+                try:
+                    assert entered.wait(timeout=5)
+                    with pytest.raises(FutureTimeout):
+                        future.result(timeout=0.1)
+                finally:
+                    busy.clear()
+            assert future.result(timeout=5) is None
 
 
 def test_unsupported_graph_version_preserves_request_for_reinvestigation(api, test_engine):
