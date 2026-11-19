@@ -27,13 +27,15 @@ def project_nodes(ctx, snapshot):
                 run_id=run.id, logical_step_id=step["logical_step_id"], attempt=1,
                 node_name=step["node_name"], duration_ms=step["duration_ms"], status=step["status"],
                 input_refs={"case_version": step.get("case_version", state["case_version"])}, output_refs={"data_source": "mock"},
-                usage_json={"model_calls": 0, "budget_epoch": step["epoch"]},
+                usage_json={**step.get("usage", {"model_calls": 0}), "budget_epoch": step["epoch"]},
             ).on_conflict_do_nothing(constraint="uq_node_runs_step").returning(NodeRun.id))
             if node_id:
                 append_event(db, ticket, "node.completed", {"node_name": step["node_name"], "node_run_id": str(node_id), "data_source": "mock"})
         run.checkpoint_ref = checkpoint_ref(snapshot)
         run.budget_json = {**run.budget_json, "steps": sum(step["epoch"] == ctx.epoch for step in state.get("completed_steps", [])),
-                           "elapsed_seconds": ctx.elapsed(), "model_calls": 0, "data_source": "mock"}
+                           "elapsed_seconds": ctx.elapsed(), "model_calls": sum(
+                               step.get("usage", {}).get("model_calls", 0) for step in state.get("completed_steps", [])
+                               if step["epoch"] == ctx.epoch), "data_source": "mock"}
         db.commit()
 
 
@@ -80,7 +82,7 @@ def project_result(ctx, snapshot, failure_reason=None):
             append_event(db, ticket, "run.completed", {"data_source": "mock", "stop_reason": "solution_ready"})
         run.cancel_requested = False
         run.checkpoint_ref = ref
-        run.budget_json = {**run.budget_json, "elapsed_seconds": ctx.elapsed(), "data_source": "mock", "model_calls": 0}
+        run.budget_json = {**run.budget_json, "elapsed_seconds": ctx.elapsed(), "data_source": "mock"}
         previous = latest_snapshot(db, run.id)
         projected = {**previous, **state, "request": previous["request"], "budget_epoch": ctx.epoch}
         save_snapshot(db, ticket, run, projected)

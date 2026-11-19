@@ -1,0 +1,49 @@
+{
+  "scenario_id": "S06",
+  "family_id": "S06",
+  "description": "明确无附件；只保留连接反馈来源，降级为证据不完整",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "明确无附件；只保留连接反馈来源，降级为证据不完整",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [],
+    "feedbacks": [
+      {
+        "record_id": "feedback:S06:a",
+        "customer_ref": "customer-demo-01",
+        "customer_email": "case-demo@example.test",
+        "device_ref": "DEVICE-A",
+        "platform": "android",
+        "occurred_at": "2026-11-18T10:00:00+08:00",
+        "summary": "【模拟反馈】连接断开，发生时间待核验。",
+        "log_ref": null
+      }
+    ],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "get_feedbacks",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "device_ref": "DEVICE-A",
+        "occurred_at": "2026-11-18T10:00:00+08:00"
+      }
+    },
+    {
+      "tool": "download_log",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "feedback_ref": "feedback:S06:a"
+      }
+    }
+  ]
+}

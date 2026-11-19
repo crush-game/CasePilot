@@ -1,0 +1,72 @@
+{
+  "scenario_id": "S09",
+  "family_id": "S09",
+  "description": "同邮箱多设备、多反馈、另一个客户；不得串用或默认最新",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": null
+  },
+  "request": {
+    "feedback_text": "同邮箱多设备、多反馈、另一个客户；不得串用或默认最新",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [],
+    "feedbacks": [
+      {
+        "record_id": "feedback:S09:a1",
+        "customer_ref": "customer-demo-01",
+        "customer_email": "case-demo@example.test",
+        "device_ref": "DEVICE-A",
+        "platform": "android",
+        "occurred_at": "2026-11-18T10:00:00+08:00",
+        "summary": "【模拟反馈】连接断开，发生时间待核验。",
+        "log_ref": null
+      },
+      {
+        "record_id": "feedback:S09:a2",
+        "customer_ref": "customer-demo-01",
+        "customer_email": "case-demo@example.test",
+        "device_ref": "DEVICE-A",
+        "platform": "android",
+        "occurred_at": "2026-11-18T10:00:00+08:00",
+        "summary": "【模拟反馈】连接断开，发生时间待核验。",
+        "log_ref": null
+      },
+      {
+        "record_id": "feedback:S09:b",
+        "customer_ref": "customer-demo-01",
+        "customer_email": "case-demo@example.test",
+        "device_ref": "DEVICE-B",
+        "platform": "android",
+        "occurred_at": "2026-11-18T10:00:00+08:00",
+        "summary": "【模拟反馈】连接断开，发生时间待核验。",
+        "log_ref": null
+      },
+      {
+        "record_id": "feedback:S09:foreign",
+        "customer_ref": "customer-other",
+        "customer_email": "other@example.test",
+        "device_ref": "DEVICE-A",
+        "platform": "android",
+        "occurred_at": "2026-11-18T10:00:00+08:00",
+        "summary": "【模拟反馈】连接断开，发生时间待核验。",
+        "log_ref": null
+      }
+    ],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "get_feedbacks",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "device_ref": "DEVICE-A",
+        "occurred_at": "2026-11-18T10:00:00+08:00"
+      }
+    }
+  ]
+}

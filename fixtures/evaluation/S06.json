@@ -1,0 +1,24 @@
+{
+  "scenario_id": "S06",
+  "family_id": "S06",
+  "split": "smoke",
+  "expected_statuses": [
+    "success",
+    "no_data"
+  ],
+  "expected_error_codes": [
+    null,
+    "NO_ATTACHMENT"
+  ],
+  "required_refs": [],
+  "excluded_refs": [],
+  "must_not_call": [],
+  "hidden_canary": "EVAL_PRIVATE_S06_NOT_FOR_CONTEXT",
+  "acceptable_next_step": "human_review",
+  "forbidden_conclusions": [
+    "已确定真实根因",
+    "已解决客户问题",
+    "已自动发送"
+  ],
+  "resolution_condition": "仅验收模拟资料和工具/模型接口；实际问题须人工验证。"
+}

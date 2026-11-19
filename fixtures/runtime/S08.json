@@ -1,0 +1,43 @@
+{
+  "scenario_id": "S08",
+  "family_id": "S08",
+  "description": "超时与认证失败；区分失败和无数据",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "超时与认证失败；区分失败和无数据",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [],
+    "feedbacks": [],
+    "logs": {},
+    "tool_errors": {
+      "search_knowledge": "TIMEOUT",
+      "get_feedbacks": "AUTH_FAILED"
+    }
+  },
+  "steps": [
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0"
+      }
+    },
+    {
+      "tool": "get_feedbacks",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "device_ref": "DEVICE-A",
+        "occurred_at": "2026-11-18T10:00:00+08:00"
+      }
+    }
+  ]
+}

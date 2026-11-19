@@ -8,8 +8,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.providers.client import ModelClient, ModelRequest, SolutionDraft
 from app.repositories.models import ExecutionTask, Run, Ticket, ToolExecution
 from app.services.tickets import digest
+from app.tools.mock import MockAdapter, ToolContext, default_runtime
+from app.tools.redaction import redact
+from app.tools.registry import ToolRegistry
 from app.workers.faults import failpoint
 
 
@@ -68,7 +72,7 @@ class ExecutionContext:
         action_id = uuid5(self.run_id, f"{self.epoch}:{logical_step}:{name}")
         args = {"device_ref": state["request"].get("device_ref"), "occurred_at": state["request"].get("occurred_at")}
         with Session(self.engine) as db:
-            self.fenced(db)
+            ticket, _, _ = self.fenced(db)
             existing = db.scalar(select(ToolExecution).where(
                 ToolExecution.run_id == self.run_id, ToolExecution.logical_action_id == action_id,
             ))
@@ -76,18 +80,40 @@ class ExecutionContext:
                 if existing.args_hash != digest(args):
                     raise RuntimeError("逻辑工具动作参数不一致")
                 return existing.result_refs
-            # P02 仅固定只读 Mock，不查询真实日志、不调用模型。
-            error = "[MOCK_ERROR]" in state["request"]["feedback_text"]
-            result = {"status": "error" if error else "success", "data_source": "mock",
-                      "evidence_refs": [f"mock:{name}:v1"], "error_code": "MOCK_TIMEOUT" if error else None}
+            # 兼容 mock-v1 的逻辑动作/缓存键；内部固定步骤映射到 P04 的受控工具。
+            # 当前适配器只读本地 Mock，后续外部 I/O 不应放在这个业务短事务内。
+            context = ToolContext(customer_ref=f"customer:{ticket.id.hex}", customer_email=ticket.customer_email,
+                                  device_ref=ticket.device_ref)
+            registry = ToolRegistry(MockAdapter(context, default_runtime(context, args["occurred_at"],
+                fail="[MOCK_ERROR]" in state["request"]["feedback_text"])))
+            if name == "mock_knowledge":
+                tool_name = "search_knowledge"
+                parameters = {"customer_ref": context.customer_ref, "query": "连接", "product_ref": "DEMO", "firmware_version": "1.0"}
+            elif name == "mock_fault":
+                tool_name = "get_feedbacks"
+                parameters = {"customer_ref": context.customer_ref, **args}
+            else:
+                raise ValueError("固定图调用了未注册的内部工具")
+            result = registry.call(tool_name, parameters).model_dump(mode="json")
+            result["evidence_refs"] = result["data_refs"]
             db.execute(insert(ToolExecution).values(
-                run_id=self.run_id, logical_action_id=action_id, tool_name=name, args_hash=digest(args),
-                status="failed" if error else "succeeded", result_refs=result, error_code=result["error_code"],
+                run_id=self.run_id, logical_action_id=action_id, tool_name=tool_name, args_hash=digest(args),
+                status="succeeded" if result["status"] == "success" else "failed", result_refs=result, error_code=result["error_code"],
             ))
             db.commit()
         failpoint("after_tool_write")
         self.control(state)
         return result
+
+    def model(self, state: dict):
+        self.control(state, allow_pause=True)
+        client = ModelClient(get_settings().model_profiles)
+        output, usage = client.complete(ModelRequest(role="solution", input={
+            "feedback_text": redact(state["request"]["feedback_text"]),
+            "device_ref": state["request"].get("device_ref"), "occurred_at": state["request"].get("occurred_at"),
+        }, allowed_evidence_refs=state.get("evidence_refs", [])), SolutionDraft)
+        self.control(state, allow_pause=True)
+        return output.model_dump(mode="json"), usage.model_dump()
 
 
 class Heartbeat:

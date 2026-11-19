@@ -1,0 +1,40 @@
+{
+  "scenario_id": "S01",
+  "family_id": "S01",
+  "description": "明确型号的规格咨询；只读取适用知识",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "明确型号的规格咨询；只读取适用知识",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [
+      {
+        "record_id": "kb:S01:spec",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0",
+        "policy_key": "spec",
+        "text": "规格连接：PILOT-01 支持模拟 Android 连接。"
+      }
+    ],
+    "feedbacks": [],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0"
+      }
+    }
+  ]
+}

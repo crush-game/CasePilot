@@ -82,7 +82,7 @@ P01 尚无附件上传，`artifact_ids` 只接受空数组。`occurred_at` 必�
 
 ## P02 人工闭环与恢复
 
-固定 Mock 图依次检查设备和发生时间，缺失时进入 `WAITING_HUMAN`。这只是工程闭环的规则流程，尚无真实模型、语义检索或真实日志诊断。Mock 方案和回复均带模拟标记；`[MOCK_ERROR]` 测试文本可触发固定工具失败路径，后续场景回放在 P04 建设。
+固定 Mock 图依次检查设备和发生时间，缺失时进入 `WAITING_HUMAN`。这只是工程闭环的规则流程，尚无真实模型、语义检索或真实日志诊断。Mock 方案和回复均带模拟标记；`[MOCK_ERROR]` 测试文本可触发固定工具失败路径，扩展场景回放见 P04。
 
 1. 建单后启动 Worker；有完整设备/时间时直接生成待确认方案，否则持久暂停并建立人工待办。
 2. `GET /human-tasks` 查询人工池，默认返回开放待办，可用 status/assignee_id 筛选，cursor 为返回的 UUID 游标。`GET /human-tasks/{id}` 返回缺口、认领状态、当前 expected_version。
@@ -125,6 +125,25 @@ npm run test:e2e
 浏览器报告和截图保存在 `output/playwright/`（Git 忽略），包括 workbench-list.png、workbench-detail.png、workbench-mobile.png 和 e2e-report.json；不保存测试口令、Cookie 或浏览器认证状态。测试账号和模拟工单留在独立测试库供排查，不删除或清空开发数据。
 
 前端锁定 Vue Router、Pinia、Vitest、Playwright 和 OpenAPI 生成器。页面采用现有 Vue/Element Plus 栈，系统字体与本地 SVG，不依赖外部字体服务。后端回归入口仍为 `scripts/verify_backend.py`。
+
+## P04 工具、模型接口与场景回放
+
+工具注册表固定为 `search_knowledge`、`get_feedbacks`、`download_log`、`extract_log_window`、`diagnose_wifi`、`analyze_domain`，每项公开封闭的 Pydantic 输入/输出 schema。工具参数中的 customer_ref 必须与系统绑定身份一致，邮箱从工单关联，不允许调用方替换邮箱、传任意 URL 或磁盘路径。反馈按设备/平台、时间筛选，多候选不默认选最新；下载句柄、提取窗口和分析窗口只能在当前授权会话使用。
+
+返回统一含 status、data_refs、error_code、retryable、source（模式、记录 ID、查询条件）和 fetched_at。没有客户反馈、没有匹配时间数据、没有附件、下载/解析失败、认证失败、超时分别表达。日志片段在返回前脱敏；规则分析与 Mock 模型分析分别标记，不把 WiFi 记录当 OTA 根因。
+
+模型入口为 `app.providers.client.ModelClient`，支持同步 Worker 和异步调用、按角色选 profile、超时、JSON/schema 与证据白名单检查。目前仅实现 `solution`/`domain` 的 `mock/deterministic-v1`；`parse`/`supervisor` 角色配置预留，尚无模型自主路由。可选的 `AFTERSALES_MODEL_PROFILES` 为 JSON 对象，格式见 `.env.example`；未配置角色使用固定 Mock 默认值。选择未实现的供应商/模型明确失败并转人工，不静默回落。Mock usage 标记 simulated，Token 和费用为 null，不伪造真实消耗。
+
+工作台仍使用 `mock-v1` 固定图：两个内部 Mock 步骤映射到注册工具，生成方案节点调用统一 Mock Client，节点记录保存逻辑模型调用次数。节点与暂停语义、旧工具缓存键保持兼容；已保存的 P02 工具结果可以继续复用。此接入不代表真实模型、RAG 或真实日志故障调查已实现，六工具的完整脚本组合通过下列独立回放入口执行。
+
+```powershell
+# 项目根目录；只使用已配置的本机 aftersales_test
+.\.venv\Scripts\python.exe -m app.eval replay --suite smoke
+```
+
+12 个独立种子场景分别放在 `fixtures/runtime/`；隐藏标注在 `fixtures/evaluation/`，仅评测入口执行结束后读取。公开动作脚本驱动回放，工具/模型仅接收当前允许的数据；这是确定性契约检查，不是自主 Agent 或真实模型效果评测。S11/S12 另执行 PostgreSQL 和独立 Worker 的真实幂等、迟到结果、预算及强制终止/恢复检查。此命令需要开发依赖和可用测试库；不会创建生产任务或调用外部模型。
+
+报告保存为 `output/evaluation/smoke.json`（Git 忽略），包含脱敏实际轨迹和检查结论，不保存隐藏答案。`fixtures/README.md` 说明场景族和目录边界；当前本地同账号不做 OS 级权限隔离，部署时 Agent 仅挂载 runtime，评测进程另挂载 evaluation。
 
 ## 提交与阶段
 

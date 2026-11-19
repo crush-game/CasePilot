@@ -1,0 +1,40 @@
+{
+  "scenario_id": "S11",
+  "family_id": "S11",
+  "description": "人工补充、重复恢复、迟到结果；另运行真实数据库工程检查",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "人工补充、重复恢复、迟到结果；另运行真实数据库工程检查",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [
+      {
+        "record_id": "kb:S11:guide",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0",
+        "policy_key": "connection",
+        "text": "连接：请核对设备状态及测试流程。"
+      }
+    ],
+    "feedbacks": [],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0"
+      }
+    }
+  ]
+}

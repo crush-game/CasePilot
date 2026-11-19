@@ -6,6 +6,8 @@ from typing import TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+from app.providers.client import ModelFailure
+
 
 GRAPH_VERSION = "mock-v1"
 
@@ -26,6 +28,7 @@ class CaseState(TypedDict, total=False):
     stop_reason: str | None
     solution: dict
     complete: bool
+    model_usage: dict
 
 
 def build_graph(saver, ctx):
@@ -52,18 +55,18 @@ def build_graph(saver, ctx):
         def node(state):
             logical_step = f"{name}:{len(state.get('completed_steps', []))}"
             result = ctx.tool(name, state, logical_step)
-            if result["status"] == "error":
+            if result["status"] != "success":
                 return {"stop_reason": "MOCK_TOOL_ERROR", "next_action": "human_interrupt"}
             refs = list(dict.fromkeys([*state.get("evidence_refs", []), *result["evidence_refs"]]))
             return {"evidence_refs": refs}
         return node
 
     def generate_solution(state):
-        return {"solution": {
-            "internal_plan": "【模拟方案】核对设备与故障时间，按测试流程检查连接并记录验证结果。",
-            "reply_draft": "【模拟回复草稿】请按确认的检查步骤验证设备状态，并反馈是否解决。",
-            "data_source": "mock", "evidence_refs": state.get("evidence_refs", []), "reviewed": False,
-        }}
+        try:
+            solution, usage = ctx.model(state)
+        except ModelFailure as exc:
+            return {"stop_reason": exc.code, "next_action": "human_interrupt"}
+        return {"solution": solution, "model_usage": usage}
 
     def validate_solution(state):
         if state["solution"]["data_source"] != "mock":
@@ -88,6 +91,7 @@ def build_graph(saver, ctx):
                 "logical_step_id": f"{epoch}:{name}:{len(steps)}", "node_name": name, "epoch": epoch,
                 "case_version": result.get("case_version", state["case_version"]),
                 "duration_ms": int((time.monotonic() - started) * 1000), "status": "succeeded",
+                "usage": result.get("model_usage", {"model_calls": 0}),
             }]
             result.setdefault("next_action", next_action)
             return result

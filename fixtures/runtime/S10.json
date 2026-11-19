@@ -1,0 +1,47 @@
+{
+  "scenario_id": "S10",
+  "family_id": "S10",
+  "description": "同型号同版本的政策冲突；展示双方并等待人工",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "同型号同版本的政策冲突；展示双方并等待人工",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [
+      {
+        "record_id": "kb:S10:allow",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0",
+        "policy_key": "policy",
+        "text": "连接：允许此模拟操作。"
+      },
+      {
+        "record_id": "kb:S10:deny",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0",
+        "policy_key": "policy",
+        "text": "连接：禁止此模拟操作。"
+      }
+    ],
+    "feedbacks": [],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0"
+      }
+    }
+  ]
+}

@@ -1,10 +1,12 @@
 from contextlib import contextmanager
 from datetime import timedelta
+import json
 import os
 import queue
 import subprocess
 import sys
 import threading
+import time
 from uuid import UUID, uuid4
 
 import pytest
@@ -13,6 +15,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.repositories.models import ExecutionTask, HumanAction, HumanTask, NodeRun, Run, Ticket, ToolExecution
+from app.repositories.database import get_engine
 from app.workers.runtime import run_once
 from app.main import app
 from app.config import get_settings
@@ -105,15 +108,43 @@ def worker_command(run_id, mode="worker"):
 
 
 def child_worker(run_id, mode="worker"):
-    result = subprocess.run(worker_command(run_id, mode), capture_output=True, text=True, timeout=35)
-    assert result.returncode == 0, result.stderr
-    return result.stdout
+    deadline = time.monotonic() + 15
+    while True:
+        result = subprocess.run(worker_command(run_id, mode), capture_output=True, text=True, timeout=35)
+        assert result.returncode == 0, result.stderr
+        if json.loads(result.stdout)["processed"]:
+            return result.stdout
+        with Session(get_engine()) as db:
+            pending = db.scalar(select(ExecutionTask.id).join(Run).where(
+                ExecutionTask.run_id == UUID(str(run_id)), Run.status.in_(["queued", "running"]),
+                ExecutionTask.status.in_(["running"] if mode == "reconcile" else ["queued", "running"]),
+            ).limit(1))
+        if pending is None:
+            return result.stdout  # 已完成/暂停时的一次空轮询仍须保持幂等。
+        assert time.monotonic() < deadline, "待执行任务在限定时间内未能被领取"
+        time.sleep(0.1)
+
+
+def test_worker_can_wait_for_future_task_availability(api, test_engine):
+    client, _, _ = api
+    created = create(client, device_ref="DEMO-01", occurred_at="2026-11-18T10:00:00Z")
+    run_id = UUID(created["run_id"])
+    with Session(test_engine) as db:
+        db.execute(update(ExecutionTask).where(ExecutionTask.run_id == run_id)
+                   .values(available_at=func.clock_timestamp() + timedelta(seconds=5)))
+        db.commit()
+    # 同数据库时钟回拨后的状态：一次轮询允许暂时没有可领取任务。
+    assert not run_once(run_id)
+    assert json.loads(child_worker(run_id))["processed"]
+    assert detail(client, created["ticket_id"])["status"] == "PENDING_CONFIRMATION"
 
 
 @contextmanager
 def held_worker(run_id, point):
     environment = {**os.environ, "CASEPILOT_TEST_FAILPOINT": point}
-    process = subprocess.Popen(worker_command(run_id), stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+    command = worker_command(run_id)
+    command.remove("--once")  # 使用正常轮询；短暂时钟回拨或锁竞争不等于任务处理失败。
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                text=True, env=environment)
     lines, received = [], queue.Queue()
 

@@ -1,0 +1,56 @@
+{
+  "scenario_id": "S02",
+  "family_id": "S02",
+  "description": "型号缺失且资料有版本差异；不擅自选版本",
+  "customer": {
+    "customer_ref": "customer-demo-01",
+    "customer_email": "case-demo@example.test",
+    "device_ref": "DEVICE-A"
+  },
+  "request": {
+    "feedback_text": "型号缺失且资料有版本差异；不擅自选版本",
+    "product_ref": "PILOT-01",
+    "occurred_at": "2026-11-18T10:00:00+08:00"
+  },
+  "runtime": {
+    "knowledge": [
+      {
+        "record_id": "kb:S02:v1",
+        "product_ref": "PILOT-01",
+        "firmware_version": "1.0",
+        "policy_key": "connection",
+        "text": "连接：请核对设备状态及测试流程。"
+      },
+      {
+        "record_id": "kb:S02:v2",
+        "product_ref": "PILOT-01",
+        "firmware_version": "2.0",
+        "policy_key": "connection",
+        "text": "连接：2.0 使用不同的模拟设置。"
+      }
+    ],
+    "feedbacks": [],
+    "logs": {},
+    "tool_errors": {}
+  },
+  "steps": [
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": null,
+        "firmware_version": null
+      }
+    },
+    {
+      "tool": "search_knowledge",
+      "arguments": {
+        "customer_ref": "customer-demo-01",
+        "query": "连接",
+        "product_ref": "PILOT-01",
+        "firmware_version": null
+      }
+    }
+  ]
+}
