@@ -118,7 +118,7 @@ def resume(db: Session, actor, task_id: UUID, body):
     run = db.get(Run, task.run_id)
     if run.status != RunStatus.PAUSED or ticket.active_run_id != run.id:
         raise AppError(409, "INVALID_STATE", "待办对应运行已失效")
-    if (run.graph_version not in {"mock-v1", "supervisor-v1"} or not task.checkpoint_ref.get("checkpoint_id")
+    if (run.graph_version not in {"mock-v1", "supervisor-v1", "supervisor-v2"} or not task.checkpoint_ref.get("checkpoint_id")
             or task.reason_code in {"CHECKPOINT_MISSING", "PAUSE_MISMATCH", "GRAPH_VERSION_UNSUPPORTED"}):
         raise AppError(409, "REINVESTIGATION_REQUIRED", "检查点不可直接恢复，请人工处理或重新调查")
     state = latest_snapshot(db, run.id)
@@ -128,10 +128,32 @@ def resume(db: Session, actor, task_id: UUID, body):
     patch = body.facts_patch.model_dump(mode="json", exclude_unset=True)
     if task.reason_code == "MISSING_FACTS" and not patch:
         raise AppError(422, "FACTS_REQUIRED", "请补充待确认信息后再恢复")
+    if run.graph_version == "supervisor-v2" and patch:
+        from app.faults.source import CONTEXT_FIELDS
+        from app.repositories.models import LogArtifact
+        if set(patch).intersection(CONTEXT_FIELDS) and db.scalar(select(LogArtifact.id).where(LogArtifact.run_id == run.id).limit(1)):
+            raise AppError(409, "REINVESTIGATION_REQUIRED", "已读取日志后补充或修正关联事实，请重新调查以保留原证据范围")
     transition(ticket, TicketStatus.QUEUED)
     state = apply_facts(db, ticket, run, state, patch, actor, body.action_id)
+    if task.reason_code == "FEEDBACK_SELECTION_REQUIRED":
+        if run.graph_version != "supervisor-v2" or not body.selected_feedback_ref:
+            raise AppError(422, "FEEDBACK_SELECTION_REQUIRED", "请选择属于本次故障的一条反馈")
+        offered = {row["record_id"] for row in task.payload_json.get("feedback_candidates", [])}
+        if body.selected_feedback_ref not in offered:
+            raise AppError(422, "FEEDBACK_SCOPE_MISMATCH", "选择的反馈不在当前候选范围")
+        from app.faults.source import require_feedback
+        from app.providers.ledger import ProviderFailure
+        try:
+            require_feedback(state["agent_config"]["enterprise"], ticket.customer_email, state["request"], body.selected_feedback_ref)
+        except ProviderFailure as exc:
+            raise AppError(409, exc.code, "反馈来源或适用范围已变化，请核对后重新调查") from None
+        state["selected_feedback_ref"] = body.selected_feedback_ref
+    elif body.selected_feedback_ref is not None:
+        raise AppError(422, "FEEDBACK_SELECTION_UNSUPPORTED", "当前待办不接受反馈选择")
     payload = {"action_id": str(body.action_id), "facts_patch": patch, "budget_epoch": epoch,
                "human_task_id": str(task.id), "pause_key": task.pause_key}
+    if body.selected_feedback_ref is not None:
+        payload["selected_feedback_ref"] = body.selected_feedback_ref
     run.status, task.status = RunStatus.QUEUED, HumanTaskStatus.RESUMING
     run.cancel_requested = False
     save_snapshot(db, ticket, run, state)

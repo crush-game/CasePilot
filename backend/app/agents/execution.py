@@ -74,7 +74,8 @@ class AgentIO:
         self.guard(state)
         self.current_state = state
         policy = AgentPolicy.model_validate(state["agent_config"]["policy"])
-        action_id = uuid5(self.ctx.run_id, f"p07:{self.ctx.epoch}:{len(state.get('completed_steps', []))}:{name}")
+        protocol = "p08" if state.get("graph_version") == "supervisor-v2" else "p07"
+        action_id = uuid5(self.ctx.run_id, f"{protocol}:{self.ctx.epoch}:{len(state.get('completed_steps', []))}:{name}")
         fingerprint = digest({"payload": clean_input(payload), "config": state["agent_config"]})
         with Session(self.ctx.engine) as db:
             _, run, _ = self.ctx.fenced(db)
@@ -116,13 +117,15 @@ class AgentIO:
         failpoint("after_agent_action_write")
         if name == "search_knowledge":
             failpoint("after_agent_search_write")
+        if name in {"download_log", "extract_log_window"}:
+            failpoint("after_" + name + "_write")
         self.guard(state)
         if failure:
             raise ModelFailure(failure, usage)
         return result
 
     def model(self, state, name, schema, instruction, observation, refs):
-        role = "parse" if name == "parse_request" else "solution" if name == "generate_solution" else "supervisor"
+        role = "domain" if name.startswith("fault.domain.") else "parse" if name == "parse_request" else "solution" if name == "generate_solution" else "supervisor"
         request = ModelRequest(role=role, input=clean_input(observation), allowed_evidence_refs=refs,
                                task_instruction=instruction)
         def execute():
@@ -132,7 +135,7 @@ class AgentIO:
             if "evidence" in observation:
                 fields = {"ref", "title", "text", "doc_key", "document_version", "heading_path", "metadata",
                           "product_scope", "firmware_versions", "regions", "channels", "effective_from", "effective_to"}
-                if schema.__name__ == "SupervisorDecision":
+                if schema.__name__ in {"SupervisorDecision", "InvestigationDecision"}:
                     fields -= {"text", "metadata"}  # 父编排使用结构化发现，原文由检查和生成节点按引用取得。
                 evidence = [{key: value for key, value in row.items() if key in fields} for row in observation["evidence"]]
                 omitted = []
@@ -168,6 +171,14 @@ class AgentIO:
         values = []
         with Session(self.ctx.engine) as db:
             for ref in refs:
+                if ref.startswith("logev:"):
+                    from app.faults.tools import evidence_view
+                    value = evidence_view(db, self.ctx.ticket_id, UUID(ref.removeprefix("logev:")),
+                                          run_id=self.ctx.run_id, request=state["request"])
+                    if not value["usable"]:
+                        raise ProviderFailure("EVIDENCE_NOT_APPLICABLE")
+                    values.append(value)
+                    continue
                 try:
                     identifier = UUID(ref.removeprefix("kb:"))
                 except ValueError:
@@ -190,3 +201,10 @@ class AgentIO:
             values = self.citations(state, list(dict.fromkeys(nearby)))
             return values, {"model_calls": 0}
         return self.action(state, "get_knowledge_context", {"refs": refs, "scope": self.scope(state)}, execute, tool=True)
+
+    def fault_tool(self, state, name, args=None):
+        from app.faults.tools import FaultTools
+        def execute():
+            value = FaultTools(self.ctx, state).call(name, args or {})
+            return value, {"model_calls": 0}
+        return self.action(state, name, {"arguments": args or {}, "request": state["request"]}, execute, tool=True)

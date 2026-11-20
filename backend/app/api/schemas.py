@@ -38,6 +38,8 @@ class TicketCreate(InputModel):
     feedback_text: str = Field(min_length=1, max_length=20000)
     customer_email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     device_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    platform: Literal["android", "ios"] | None = None
+    app_version: str | None = Field(default=None, min_length=1, max_length=120)
     product_ref: str | None = Field(default=None, min_length=1, max_length=120)
     firmware_version: str | None = Field(default=None, min_length=1, max_length=120)
     region: str | None = Field(default=None, min_length=1, max_length=120)
@@ -117,6 +119,24 @@ class FactView(BaseModel):
     fact_version: int
 
 
+class LogEvidenceView(BaseModel):
+    ref: str
+    title: str
+    text: str
+    data_source: Literal["mock"]
+    source_type: Literal["detailed_log", "telemetry"]
+    domain: str
+    occurred_at: AwareDatetime
+    start_line: int
+    end_line: int
+    usable: bool
+    content_hash: str
+    source_checksum: str
+    metadata: dict
+    product_scope: list[str]
+    firmware_versions: list[str]
+
+
 class TicketDetail(TicketView):
     model_config = ConfigDict(from_attributes=True, json_schema_serialization_defaults_required=True)
     latest_event_id: int
@@ -170,6 +190,8 @@ class VersionedAction(InputModel):
 
 class FactsPatch(InputModel):
     device_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    platform: Literal["android", "ios"] | None = None
+    app_version: str | None = Field(default=None, min_length=1, max_length=120)
     product_ref: str | None = Field(default=None, min_length=1, max_length=120)
     firmware_version: str | None = Field(default=None, min_length=1, max_length=120)
     region: str | None = Field(default=None, min_length=1, max_length=120)
@@ -189,7 +211,7 @@ class FactsPatch(InputModel):
 
 class ResumeInput(VersionedAction):
     facts_patch: FactsPatch = Field(default_factory=FactsPatch)
-    selected_feedback_ref: None = None
+    selected_feedback_ref: str | None = Field(default=None, min_length=1, max_length=120, pattern=r"^[A-Za-z0-9][A-Za-z0-9_:.-]*$")
 
 
 class ReasonAction(VersionedAction):

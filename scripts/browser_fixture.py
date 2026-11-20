@@ -21,8 +21,9 @@ def main():
     os.environ["AFTERSALES_DATABASE_URL"] = raw_url
     os.environ["AFTERSALES_ALLOWED_ORIGINS"] = json.dumps(["http://127.0.0.1:15173"])
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["prepare", "api", "worker"])
+    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker"])
     parser.add_argument("--run-id", type=UUID)
+    parser.add_argument("--actor-id", type=UUID)
     args = parser.parse_args()
 
     from sqlalchemy.orm import Session
@@ -41,6 +42,53 @@ def main():
         if args.run_id is None:
             raise SystemExit("必须指定本次测试 run-id")
         print(json.dumps({"processed": run_once(args.run_id)}))
+    elif args.mode in {"faults", "fault-worker"}:
+        # 仅浏览器验收夹具使用HTTP契约替身；业务代码不依赖tests。
+        import sys
+        from tempfile import TemporaryDirectory
+        import httpx
+        from pydantic import SecretStr
+        sys.path.insert(0, str(root / "backend/tests/integration"))
+        from test_p08 import advance, response, configuration
+        from app.config import get_settings
+        from app.providers.configuration import ProviderConfig
+        from app.providers.ledger import create_budget
+        from app.providers.remote import ProviderSession
+        from app.repositories.models import AppUser
+        from app.services.workflow_common import latest_snapshot
+        def execute(run_id):
+            with Session(get_engine()) as db:
+                config = ProviderConfig.model_validate(latest_snapshot(db, run_id)["agent_config"]["providers"])
+            client = ProviderSession(get_engine(), create_budget(get_engine(), scope="p08-browser-contract", max_calls=20),
+                config, SecretStr("CONTRACT_TEST_KEY"), transport=httpx.MockTransport(response))
+            advance(run_id, client)
+        if args.mode == "fault-worker":
+            if not args.run_id:
+                raise SystemExit("必须指定本次测试run-id")
+            execute(args.run_id)
+            print(json.dumps({"processed": True, "inference_mode": "contract"}))
+        else:
+            if not args.actor_id:
+                raise SystemExit("必须指定本次测试业务账号")
+            with TemporaryDirectory(prefix="casepilot-p08-browser-") as directory:
+                config_path = Path(directory) / "providers.json"
+                config_path.write_text(configuration().model_dump_json(), encoding="utf-8")
+                os.environ["AFTERSALES_WORKFLOW_GRAPH_VERSION"] = "supervisor-v2"
+                os.environ["AFTERSALES_PROVIDER_CONFIG_PATH"] = str(config_path)
+                os.environ["AFTERSALES_ENTERPRISE_MOCK_FIXTURE"] = "p08-demo"
+                get_settings.cache_clear()
+                cases = {}
+                with Session(get_engine(), expire_on_commit=False) as db:
+                    actor = db.get(AppUser, args.actor_id)
+                    if not actor or not actor.login.startswith("e2e_") or actor.role != Role.BUSINESS:
+                        raise SystemExit("只允许本次浏览器测试账号")
+                    for name, email in (("cross", "p08-cross@example.test"), ("multi", "p08-multi@example.test")):
+                        cases[name] = create_ticket(db, actor, str(uuid4()), TicketCreate(customer_email=email,
+                            feedback_text="升级后断连，请核对WiFi和OTA的日志。", device_ref="P08-A", product_ref="PILOT-01",
+                            firmware_version="1.0", platform="android", app_version="2.0", occurred_at="2026-11-20T10:00:00+08:00"))
+                for value in cases.values():
+                    execute(UUID(value["run_id"]))
+                print(json.dumps(cases))
     else:
         upgrade_database(get_engine())
         setup_checkpoints()
@@ -50,7 +98,7 @@ def main():
             password = secrets.token_urlsafe(24)
             with Session(get_engine(), expire_on_commit=False) as db:
                 user = create_user(db, f"{prefix}_{key}", password, role)
-                users[key] = {"login": user.login, "password": password}
+                users[key] = {"id": str(user.id), "login": user.login, "password": password}
                 if key == "business":
                     for index in range(22):
                         create_ticket(db, user, str(uuid4()), TicketCreate(

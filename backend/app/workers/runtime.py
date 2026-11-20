@@ -92,14 +92,14 @@ def resume_already_consumed(snapshot, payload):
 
 def execute_claim(ctx, initial_state, payload, kind, graph_version, reconcile):
     saver = PostgresSaver(ctx.connection)
-    if graph_version == "supervisor-v1":
+    if graph_version in {"supervisor-v1", "supervisor-v2"}:
         from app.agents.graphs.supervisor import build_graph as build_agent_graph
-        graph = build_agent_graph(saver, ctx)
+        graph = build_agent_graph(saver, ctx, faults=graph_version == "supervisor-v2")
     else:
         graph = build_graph(saver, ctx)
     config = {"configurable": {"thread_id": str(ctx.run_id)}, "recursion_limit": 100}
     snapshot = graph.get_state(config)
-    if graph_version not in {GRAPH_VERSION, "supervisor-v1"}:
+    if graph_version not in {GRAPH_VERSION, "supervisor-v1", "supervisor-v2"}:
         project_result(ctx, snapshot, "GRAPH_VERSION_UNSUPPORTED")
         return
     if reconcile:

@@ -167,6 +167,8 @@ select.control { padding-right: 30px; font-size: 13px; }
 .helper { font-size: 11px; color: var(--muted); margin: 13px 0; }
 .result-icon { display: grid; place-items: center; width: 48px; height: 48px; background: #ebf4e5; color: #577947; border-radius: 50%; margin-bottom: 20px; }
 .evidence-item { display: flex; align-items: start; gap: 14px; padding: 20px 0; border-bottom: 1px solid var(--line); }
+.evidence-item > div { min-width: 0; flex: 1; }
+.evidence-item > svg { flex-shrink: 0; }
 .evidence-item strong { font-size: 13px; }
 .evidence-item p { font-size: 11px; margin: 6px 0; }
 .retained-draft { font-size: 12px; margin-top: 18px; }

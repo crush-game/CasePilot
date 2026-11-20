@@ -68,7 +68,7 @@ class ExecutionContext:
         if not allow_pause and (
             self.elapsed() >= policy.get("timeout_seconds", get_settings().run_timeout_seconds)
             or sum(step["epoch"] == self.epoch for step in state.get("completed_steps", [])) >= (
-                policy.get("max_steps", get_settings().max_agent_steps) if state.get("graph_version") == "supervisor-v1" else get_settings().max_mock_steps)
+                policy.get("max_steps", get_settings().max_agent_steps) if state.get("graph_version") in {"supervisor-v1", "supervisor-v2"} else get_settings().max_mock_steps)
         ):
             return "BUDGET_EXHAUSTED"
         return None

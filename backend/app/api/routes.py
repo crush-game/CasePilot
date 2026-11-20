@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, select
 from app.api.dependencies import BusinessUser, CurrentUser, Database, require_trusted_origin
 from app.api.schemas import (
     EventList, LoginInput, LoginResult, RunView, TicketCreate, TicketCreated, TicketDetail,
-    TicketList, TicketPatch, TicketView, UserView,
+    TicketList, TicketPatch, TicketView, UserView, LogEvidenceView,
 )
 from app.config import get_settings
 from app.domain.enums import Priority, TicketStatus
@@ -107,3 +107,10 @@ def get_run(run_id: UUID, user: BusinessUser, db: Database):
                    nodes=[{"id": str(node.id), "node_name": node.node_name, "status": node.status,
                            "logical_step_id": node.logical_step_id, "duration_ms": node.duration_ms,
                            "usage": node.usage_json, "input_refs": node.input_refs, "output_refs": node.output_refs} for node in nodes])
+
+
+@router.get("/tickets/{ticket_id}/evidence/{evidence_id}", response_model=LogEvidenceView)
+def get_log_evidence(ticket_id: UUID, evidence_id: UUID, user: BusinessUser, db: Database):
+    from app.faults.tools import evidence_view
+    tickets.get_ticket(db, ticket_id)
+    return evidence_view(db, ticket_id, evidence_id)

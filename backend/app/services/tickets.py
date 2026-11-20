@@ -82,7 +82,7 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> 
         "ticket_metadata": {"priority": body.priority, "assignee_id": None},
     }
     db.add(CaseSnapshot(run_id=run_id, case_version=1, state_json=state, checksum=digest(state)))
-    for field in ("customer_email", "feedback_text", "device_ref", "occurred_at", *SCOPE_FIELDS):
+    for field in ("customer_email", "feedback_text", "device_ref", "occurred_at", "platform", "app_version", *SCOPE_FIELDS):
         if payload[field] is not None:
             db.add(TicketFact(
                 ticket_id=ticket_id, field=field, value_json={"value": payload[field]},

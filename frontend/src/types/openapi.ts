@@ -121,6 +121,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/{ticket_id}/evidence/{evidence_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Log Evidence */
+        get: operations["get_log_evidence_api_v1_tickets__ticket_id__evidence__evidence_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/human-tasks": {
         parameters: {
             query?: never;
@@ -696,6 +713,10 @@ export interface components {
         FactsPatch: {
             /** Device Ref */
             device_ref?: string | null;
+            /** Platform */
+            platform?: ("android" | "ios") | null;
+            /** App Version */
+            app_version?: string | null;
             /** Product Ref */
             product_ref?: string | null;
             /** Firmware Version */
@@ -864,6 +885,50 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** LogEvidenceView */
+        LogEvidenceView: {
+            /** Ref */
+            ref: string;
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /**
+             * Data Source
+             * @constant
+             */
+            data_source: "mock";
+            /**
+             * Source Type
+             * @enum {string}
+             */
+            source_type: "detailed_log" | "telemetry";
+            /** Domain */
+            domain: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Start Line */
+            start_line: number;
+            /** End Line */
+            end_line: number;
+            /** Usable */
+            usable: boolean;
+            /** Content Hash */
+            content_hash: string;
+            /** Source Checksum */
+            source_checksum: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Product Scope */
+            product_scope: string[];
+            /** Firmware Versions */
+            firmware_versions: string[];
+        };
         /** LoginInput */
         LoginInput: {
             /** Login */
@@ -921,7 +986,7 @@ export interface components {
             expected_version: number;
             facts_patch?: components["schemas"]["FactsPatch"];
             /** Selected Feedback Ref */
-            selected_feedback_ref?: null;
+            selected_feedback_ref?: string | null;
         };
         /** ReviewInput */
         ReviewInput: {
@@ -1169,6 +1234,10 @@ export interface components {
             customer_email: string;
             /** Device Ref */
             device_ref?: string | null;
+            /** Platform */
+            platform?: ("android" | "ios") | null;
+            /** App Version */
+            app_version?: string | null;
             /** Product Ref */
             product_ref?: string | null;
             /** Firmware Version */
@@ -1651,6 +1720,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RunView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_log_evidence_api_v1_tickets__ticket_id__evidence__evidence_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogEvidenceView"];
                 };
             };
             /** @description Validation Error */

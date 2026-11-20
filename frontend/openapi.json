@@ -421,6 +421,56 @@
         }
       }
     },
+    "/api/v1/tickets/{ticket_id}/evidence/{evidence_id}": {
+      "get": {
+        "summary": "Get Log Evidence",
+        "operationId": "get_log_evidence_api_v1_tickets__ticket_id__evidence__evidence_id__get",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "evidence_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Evidence Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogEvidenceView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/human-tasks": {
       "get": {
         "summary": "List Human Tasks",
@@ -2213,6 +2263,34 @@
             ],
             "title": "Device Ref"
           },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "android",
+                  "ios"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
           "product_ref": {
             "anyOf": [
               {
@@ -2657,6 +2735,102 @@
         ],
         "title": "KnowledgeAction"
       },
+      "LogEvidenceView": {
+        "properties": {
+          "ref": {
+            "type": "string",
+            "title": "Ref"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "data_source": {
+            "type": "string",
+            "const": "mock",
+            "title": "Data Source"
+          },
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "detailed_log",
+              "telemetry"
+            ],
+            "title": "Source Type"
+          },
+          "domain": {
+            "type": "string",
+            "title": "Domain"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "start_line": {
+            "type": "integer",
+            "title": "Start Line"
+          },
+          "end_line": {
+            "type": "integer",
+            "title": "End Line"
+          },
+          "usable": {
+            "type": "boolean",
+            "title": "Usable"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "source_checksum": {
+            "type": "string",
+            "title": "Source Checksum"
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "product_scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Product Scope"
+          },
+          "firmware_versions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Firmware Versions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ref",
+          "title",
+          "text",
+          "data_source",
+          "source_type",
+          "domain",
+          "occurred_at",
+          "start_line",
+          "end_line",
+          "usable",
+          "content_hash",
+          "source_checksum",
+          "metadata",
+          "product_scope",
+          "firmware_versions"
+        ],
+        "title": "LogEvidenceView"
+      },
       "LoginInput": {
         "properties": {
           "login": {
@@ -2783,7 +2957,17 @@
             "$ref": "#/components/schemas/FactsPatch"
           },
           "selected_feedback_ref": {
-            "type": "null",
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_:.-]*$"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Selected Feedback Ref"
           }
         },
@@ -3419,6 +3603,34 @@
               }
             ],
             "title": "Device Ref"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "android",
+                  "ios"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
           },
           "product_ref": {
             "anyOf": [

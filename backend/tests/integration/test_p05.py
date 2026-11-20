@@ -7,6 +7,7 @@ import queue
 import subprocess
 import sys
 import threading
+import time
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -69,6 +70,15 @@ def job(client, value):
 
 def document(client, value):
     return client.get(f"/api/v1/knowledge/documents/{value['document_id']}").json()
+
+
+def advance_ingestion(job_id):
+    # 正式Worker持续轮询；进程退出/租约到期后的第一次空轮询不代表恢复失败。
+    deadline = time.monotonic() + 5
+    while not ingestion.run_once(job_id):
+        assert time.monotonic() < deadline, "入库任务在限定时间内未被领取"
+        time.sleep(0.05)
+    return True
 
 
 def test_upload_queue_publish_bm25_citation_and_source_roundtrip(admin_api):
@@ -321,9 +331,22 @@ def test_real_worker_kill_and_expired_lease_recover_without_partial_index(admin_
             db.execute(update(IngestionJob).where(IngestionJob.id == job_id).values(lease_until=func.clock_timestamp() - timedelta(seconds=1)))
             db.commit()
         assert not ingestion.run_once(job_id)  # 旧进程仍持有运行锁，不能越过租约并发发布。
-    assert ingestion.run_once(job_id)
+    assert advance_ingestion(job_id)
     assert job(client, value)["status"] == "succeeded" and job(client, value)["attempt"] == 2
     assert search(client, metadata)["hits"]
+
+
+def test_recovery_worker_polls_until_running_lease_is_eligible(admin_api, test_engine):
+    client, _ = admin_api
+    value = upload(client, meta()).json()
+    job_id = UUID(value["job_id"])
+    with Session(test_engine) as db:
+        db.execute(update(IngestionJob).where(IngestionJob.id == job_id).values(status="running", attempt=1,
+            lease_until=func.clock_timestamp() + timedelta(seconds=1)))
+        db.commit()
+    assert not ingestion.run_once(job_id)
+    assert advance_ingestion(job_id)
+    assert job(client, value)["status"] == "succeeded" and job(client, value)["attempt"] == 2
 
 
 def test_archiving_cancels_pending_job_and_blocks_late_publication(admin_api, test_engine):

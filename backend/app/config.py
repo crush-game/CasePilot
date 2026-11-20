@@ -14,7 +14,8 @@ class Settings(BaseSettings):
 
     database_url: SecretStr
     model_provider: Literal["mock"] = "mock"
-    workflow_graph_version: Literal["mock-v1", "supervisor-v1"] = "mock-v1"
+    workflow_graph_version: Literal["mock-v1", "supervisor-v1", "supervisor-v2"] = "mock-v1"
+    enterprise_mock_fixture: str = Field(default="p08-demo", pattern=r"^[a-z0-9_-]{1,80}$")
     model_profiles: dict[Role, ModelProfile] = Field(default_factory=dict)
     provider_api_key: SecretStr | None = None
     provider_config_path: Path | None = None

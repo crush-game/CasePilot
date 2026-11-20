@@ -8,7 +8,7 @@ from app.tools.contracts import Contract
 
 
 class AgentPolicy(Contract):
-    version: Literal["p07-v1"] = "p07-v1"
+    version: Literal["p07-v1", "p08-v1"] = "p07-v1"
     max_model_calls: int = Field(default=20, ge=1, le=20)
     max_tokens: int = Field(default=100000, ge=1, le=500000)
     max_cost: float = Field(default=0.5, gt=0, le=5, allow_inf_nan=False)
@@ -19,6 +19,7 @@ class AgentPolicy(Contract):
     max_run_cost: float = Field(default=2.5, gt=0, le=5, allow_inf_nan=False)
     timeout_seconds: int = Field(default=300, ge=1, le=3600)
     max_steps: int = Field(default=64, ge=8, le=150)
+    max_fault_tasks: int = Field(default=2, ge=1, le=2)
 
 
 class ParsedRequest(Contract):
@@ -78,7 +79,13 @@ def configuration_snapshot():
     settings = get_settings()
     if settings.workflow_graph_version == "mock-v1":
         return {}
-    return {"graph_version": "supervisor-v1", "agent_config": {
+    value = {"graph_version": settings.workflow_graph_version, "agent_config": {
         "providers": load_provider_config(settings.provider_config_path).model_dump(mode="json"),
         "policy": AgentPolicy(timeout_seconds=settings.run_timeout_seconds,
                               max_steps=settings.max_agent_steps).model_dump(mode="json"), "prompt_version": "p07-v1"}}
+    if settings.workflow_graph_version == "supervisor-v2":
+        from app.faults.source import source_snapshot
+        value["agent_config"]["enterprise"] = source_snapshot(settings.enterprise_mock_fixture)
+        value["agent_config"]["policy"]["version"] = "p08-v1"
+        value["agent_config"]["prompt_version"] = "p08-v1"
+    return value

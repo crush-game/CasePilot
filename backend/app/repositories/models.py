@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0004_providers"
+SCHEMA_VERSION = "0005_faults"
 
 
 def choices(column, enum):
@@ -441,3 +441,46 @@ class KBIndexBuild(Base):
     index_version: Mapped[int | None] = mapped_column(BigInteger)
     chunk_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LogArtifact(Base):
+    __tablename__ = "log_artifacts"
+    __table_args__ = (
+        ForeignKeyConstraint(["run_id", "ticket_id"], ["business.runs.id", "business.runs.ticket_id"], name="fk_log_artifacts_run_ticket"),
+        UniqueConstraint("id", "run_id", "ticket_id", name="uq_log_artifacts_owner"),
+        UniqueConstraint("run_id", "feedback_ref", "source_kind", name="uq_log_artifacts_source"),
+        CheckConstraint("source_kind IN ('detailed_log','telemetry') AND data_source = 'mock'", name="mode"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    run_id: Mapped[UUID] = mapped_column()
+    ticket_id: Mapped[UUID] = mapped_column()
+    feedback_ref: Mapped[str] = mapped_column(String(120))
+    source_kind: Mapped[str] = mapped_column(String(24))
+    data_source: Mapped[str] = mapped_column(String(16), default="mock")
+    checksum: Mapped[str] = mapped_column(String(64))
+    context_hash: Mapped[str] = mapped_column(String(64))
+    media_type: Mapped[str] = mapped_column(String(60))
+    original_bytes: Mapped[bytes] = mapped_column(LargeBinary)
+    metadata_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class LogEvidence(Base):
+    __tablename__ = "log_evidence"
+    __table_args__ = (
+        ForeignKeyConstraint(["artifact_id", "run_id", "ticket_id"],
+            ["business.log_artifacts.id", "business.log_artifacts.run_id", "business.log_artifacts.ticket_id"], name="fk_log_evidence_artifact_owner"),
+        UniqueConstraint("artifact_id", "member_name", "line_number", name="uq_log_evidence_line"),
+        CheckConstraint("line_number > 0", name="line"),
+        Index("ix_log_evidence_run_time", "run_id", "occurred_at"),
+    )
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    artifact_id: Mapped[UUID] = mapped_column()
+    run_id: Mapped[UUID] = mapped_column()
+    ticket_id: Mapped[UUID] = mapped_column()
+    member_name: Mapped[str] = mapped_column(String(200))
+    line_number: Mapped[int] = mapped_column(Integer)
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    domain: Mapped[str] = mapped_column(String(30))
+    text: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))

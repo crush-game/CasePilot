@@ -211,6 +211,38 @@ try {
     assert.equal(result.latest_run_id, created.run_id)
   })
 
+  let faultCases
+  await scenario('P08 跨领域报告与脱敏日志证据（契约替身）', async () => {
+    faultCases = fixture('faults', '--actor-id', users.business.id)
+    await page.goto(`${origin}/tickets/${faultCases.cross.ticket_id}`)
+    await visible(page.getByRole('heading', { name: '故障调查记录' }))
+    await visible(page.getByText('未确认的候选原因', { exact: true }))
+    await page.locator('.solution-panel').filter({ has: page.getByRole('heading', { name: '故障调查记录' }) }).getByRole('button', { name: '查看来源说明', exact: false }).click()
+    await visible(page.locator('.evidence-item').filter({ hasText: 'disconnect' }))
+    assert(!(await page.locator('.el-drawer').innerText()).includes('MOCK_SECRET_P08'))
+    assert(await page.locator('.el-drawer__body').evaluate(element => element.scrollWidth <= element.clientWidth + 1), '日志证据抽屉横向溢出')
+    await page.screenshot({ path: resolve(output, 'p08-evidence.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Close this dialog' }).click()
+  })
+
+  await scenario('P08 人工选择反馈并恢复（契约替身）', async () => {
+    await page.goto(`${origin}/tickets/${faultCases.multi.ticket_id}`)
+    await waitStatus(page, '待人工处理')
+    await page.getByRole('button', { name: '认领待办', exact: true }).click()
+    const selection = page.getByLabel('选择本次反馈记录')
+    await visible(selection)
+    assert.equal(await selection.inputValue(), '')
+    await page.getByRole('button', { name: '补充并恢复', exact: true }).click()
+    await visible(page.getByRole('alert').filter({ hasText: '请选择与本次问题匹配的反馈记录' }))
+    await selection.selectOption('feedback:multi:a')
+    await page.getByRole('button', { name: '补充并恢复', exact: true }).click()
+    await waitStatus(page, '排队中')
+    fixture('fault-worker', '--run-id', faultCases.multi.run_id)
+    await page.reload()
+    await waitStatus(page, '待确认方案')
+    await visible(page.getByRole('heading', { name: '故障调查记录' }))
+  })
+
   await scenario('375px 小屏、横屏与减少动画偏好', async () => {
     await page.setViewportSize({ width: 375, height: 812 })
     await page.emulateMedia({ reducedMotion: 'reduce' })

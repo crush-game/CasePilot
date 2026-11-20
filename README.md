@@ -260,6 +260,23 @@ Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/sear
 
 子图实现依据 [LangGraph 官方子图说明](https://docs.langchain.com/oss/python/langgraph/use-subgraphs)，锁与检查点语义以当前锁定版本的本地测试为准。实际验收状态见 `docs/development-log.md`。
 
+## P08 故障调查与日志证据
+
+独立图 `supervisor-v2` 挂载故障调查子图，保留旧 `mock-v1`/`supervisor-v1` 运行的检查点行为。默认仍为 `mock-v1`；显式启用 v2 会使用配置的模型服务，费用沿用P07持久预算。企业侧始终只读公开样例 `fixtures/enterprise/p08-demo.json`，没有连接真实后台。样例键由 `AFTERSALES_ENTERPRISE_MOCK_FIXTURE` 指定，建单时固定校验和，不能悄悄替换同一次调查的数据。
+
+建单/人工补充支持 Android/iOS 与 App版本，反馈按客户、设备、平台、已知版本和时间前后30分钟筛选；多条候选进入人工待办，人工选择后才能下载。详细日志缺失且仅调查WiFi时可看埋点，结果仍转人工；认证/超时/下载/解析失败不能当成无日志，OTA不能用WiFi记录替代。确定性WiFi规则报告事件，领域模型按实际日志返回未确认候选、支持/反证和待验证事项，不能凭时间相邻确认因果。
+
+新增兼容迁移 `0005_faults`，在 PostgreSQL 保存原始附件及脱敏证据；原字节不返回API或写入图状态。附件句柄/引用绑定ticket和run，支持进程恢复；源checksum、事实范围hash和复合外键防止串用。ZIP在内存读取，限制路径、成员数、大小及压缩比；文本为带时区的UTF-8 JSONL。查看窗口默认前后5分钟，最多扩大至前后15分钟；超过40条明确转人工。详情展示已查看领域、范围、限制和日志行号；来源接口仅返回脱敏片段。读取日志后修正关联事实需重新调查。
+
+```powershell
+# 本地模拟验收：独立PostgreSQL测试库，HTTP模型契约替身，无付费请求
+.\.venv\Scripts\python.exe scripts/verify_p08.py
+# 全量回归，包含旧图兼容和迁移一致性
+.\.venv\Scripts\python.exe scripts/verify_backend.py
+```
+
+P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contract-tests.xml`，标记 `data_source=mock`、`inference_mode=contract`、`real_acceptance=false`。场景包含WiFi/OTA跨领域、无数据/下载错误、多反馈人工恢复、跨工单/版本隔离、脱敏、坏ZIP、预算、无进展和真实进程强杀恢复。它验证工程闭环，不报告模型诊断准确率。真实企业接口需取得授权并核验契约后单独适配；后续阶段不自动启用或花费真实模型预算。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。
