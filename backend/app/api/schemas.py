@@ -38,6 +38,10 @@ class TicketCreate(InputModel):
     feedback_text: str = Field(min_length=1, max_length=20000)
     customer_email: str = Field(min_length=3, max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
     device_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    product_ref: str | None = Field(default=None, min_length=1, max_length=120)
+    firmware_version: str | None = Field(default=None, min_length=1, max_length=120)
+    region: str | None = Field(default=None, min_length=1, max_length=120)
+    channel: str | None = Field(default=None, min_length=1, max_length=120)
     occurred_at: AwareDatetime | None = None
     occurred_at_precision: Literal["minute", "second"] | None = None
     priority: Priority = Priority.NORMAL
@@ -166,6 +170,10 @@ class VersionedAction(InputModel):
 
 class FactsPatch(InputModel):
     device_ref: str | None = Field(default=None, min_length=1, max_length=128)
+    product_ref: str | None = Field(default=None, min_length=1, max_length=120)
+    firmware_version: str | None = Field(default=None, min_length=1, max_length=120)
+    region: str | None = Field(default=None, min_length=1, max_length=120)
+    channel: str | None = Field(default=None, min_length=1, max_length=120)
     occurred_at: AwareDatetime | None = None
     occurred_at_precision: Literal["minute", "second"] | None = None
 

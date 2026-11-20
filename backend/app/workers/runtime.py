@@ -92,10 +92,14 @@ def resume_already_consumed(snapshot, payload):
 
 def execute_claim(ctx, initial_state, payload, kind, graph_version, reconcile):
     saver = PostgresSaver(ctx.connection)
-    graph = build_graph(saver, ctx)
+    if graph_version == "supervisor-v1":
+        from app.agents.graphs.supervisor import build_graph as build_agent_graph
+        graph = build_agent_graph(saver, ctx)
+    else:
+        graph = build_graph(saver, ctx)
     config = {"configurable": {"thread_id": str(ctx.run_id)}, "recursion_limit": 100}
     snapshot = graph.get_state(config)
-    if graph_version != GRAPH_VERSION:
+    if graph_version not in {GRAPH_VERSION, "supervisor-v1"}:
         project_result(ctx, snapshot, "GRAPH_VERSION_UNSUPPORTED")
         return
     if reconcile:
@@ -161,7 +165,7 @@ def execute_claim(ctx, initial_state, payload, kind, graph_version, reconcile):
         project_result(ctx, graph.get_state(config))
 
 
-def run_once(run_id=None, reconcile=False):
+def run_once(run_id=None, reconcile=False, provider_session=None):
     for candidate in eligible_tasks(run_id, reconcile):
         with checkpoint_connection() as connection:
             if not try_run_lock(connection, candidate.run_id):
@@ -170,6 +174,7 @@ def run_once(run_id=None, reconcile=False):
             if claimed is None:
                 continue
             ctx, state, payload, kind, version = claimed
+            ctx.provider_session = provider_session
             try:
                 with Heartbeat(ctx):
                     execute_claim(ctx, state, payload, kind, version, reconcile)

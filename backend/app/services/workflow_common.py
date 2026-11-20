@@ -46,6 +46,14 @@ def latest_snapshot(db: Session, run_id: UUID) -> dict:
     return snapshot.state_json
 
 
+def ordered_nodes(nodes):
+    # 子图的多个完成步骤可同事务投影，时间戳相同或回拨时仍以检查点逻辑序号为准。
+    def position(node):
+        suffix = node.logical_step_id.rsplit(":", 1)[-1]
+        return (0, int(suffix)) if suffix.isdecimal() else (1, node.created_at, str(node.id))
+    return sorted(nodes, key=position)
+
+
 def append_event(db: Session, ticket: Ticket, event_type: str, payload: dict, run_id=None):
     db.add(TicketEvent(ticket_id=ticket.id, run_id=run_id or ticket.active_run_id,
                        event_type=event_type, payload_json={**payload, "version": ticket.version}))

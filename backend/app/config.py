@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     database_url: SecretStr
     model_provider: Literal["mock"] = "mock"
+    workflow_graph_version: Literal["mock-v1", "supervisor-v1"] = "mock-v1"
     model_profiles: dict[Role, ModelProfile] = Field(default_factory=dict)
     provider_api_key: SecretStr | None = None
     provider_config_path: Path | None = None
@@ -27,6 +28,7 @@ class Settings(BaseSettings):
     run_timeout_seconds: int = Field(default=300, ge=1, le=3600)
     max_budget_epochs: int = Field(default=5, ge=1, le=20)
     max_mock_steps: int = Field(default=24, ge=1, le=100)
+    max_agent_steps: int = Field(default=64, ge=8, le=150)
     allowed_origins: list[str] = [
         "http://127.0.0.1:5173", "http://localhost:5173",
         "http://127.0.0.1:8000", "http://localhost:8000",

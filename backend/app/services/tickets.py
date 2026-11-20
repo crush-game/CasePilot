@@ -66,9 +66,11 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> 
     )
     db.add(ticket)
     db.flush()
+    from app.agents.contracts import configuration_snapshot, SCOPE_FIELDS
+    execution = configuration_snapshot()
     run = Run(
         id=run_id, ticket_id=ticket_id, thread_id=str(run_id),
-        graph_version="mock-v1", case_version=1,
+        graph_version=execution.get("graph_version", "mock-v1"), case_version=1,
     )
     db.add(run)
     db.flush()
@@ -76,11 +78,11 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> 
     db.add(ExecutionTask(id=task_id, run_id=run_id, kind="start", action_id=action_id))
     state = {
         "ticket_id": str(ticket_id), "run_id": str(run_id), "case_version": 1,
-        "request": payload, "data_source": "mock", "evidence_refs": [],
+        "request": payload, "data_source": "mock", "evidence_refs": [], **execution,
         "ticket_metadata": {"priority": body.priority, "assignee_id": None},
     }
     db.add(CaseSnapshot(run_id=run_id, case_version=1, state_json=state, checksum=digest(state)))
-    for field in ("customer_email", "feedback_text", "device_ref", "occurred_at"):
+    for field in ("customer_email", "feedback_text", "device_ref", "occurred_at", *SCOPE_FIELDS):
         if payload[field] is not None:
             db.add(TicketFact(
                 ticket_id=ticket_id, field=field, value_json={"value": payload[field]},

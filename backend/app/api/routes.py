@@ -101,8 +101,9 @@ def get_run(run_id: UUID, user: BusinessUser, db: Database):
     run = db.get(Run, run_id)
     if not run:
         raise AppError(404, "RUN_NOT_FOUND", "运行记录不存在")
-    nodes = list(db.scalars(select(NodeRun).where(NodeRun.run_id == run_id).order_by(NodeRun.created_at, NodeRun.id)))
+    from app.services.workflow_common import ordered_nodes
+    nodes = ordered_nodes(db.scalars(select(NodeRun).where(NodeRun.run_id == run_id)))
     return RunView(**{name: getattr(run, name) for name in RunView.model_fields if name != "nodes"},
                    nodes=[{"id": str(node.id), "node_name": node.node_name, "status": node.status,
                            "logical_step_id": node.logical_step_id, "duration_ms": node.duration_ms,
-                           "usage": node.usage_json} for node in nodes])
+                           "usage": node.usage_json, "input_refs": node.input_refs, "output_refs": node.output_refs} for node in nodes])

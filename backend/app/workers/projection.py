@@ -5,7 +5,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.domain.enums import TicketStatus
-from app.repositories.models import HumanAction, HumanTask, NodeRun
+from app.repositories.models import HumanAction, HumanTask, NodeRun, ProviderBudget
 from app.services.workflow_common import append_event, latest_snapshot, save_snapshot, transition
 
 
@@ -26,7 +26,9 @@ def project_nodes(ctx, snapshot):
             node_id = db.scalar(insert(NodeRun).values(
                 run_id=run.id, logical_step_id=step["logical_step_id"], attempt=1,
                 node_name=step["node_name"], duration_ms=step["duration_ms"], status=step["status"],
-                input_refs={"case_version": step.get("case_version", state["case_version"])}, output_refs={"data_source": "mock"},
+                input_refs={"case_version": step.get("case_version", state["case_version"])},
+                output_refs={"data_source": "mock", **step.get("output_refs", {}),
+                             "inference_mode": state.get("inference_mode", "mock")},
                 usage_json={**step.get("usage", {"model_calls": 0}), "budget_epoch": step["epoch"]},
             ).on_conflict_do_nothing(constraint="uq_node_runs_step").returning(NodeRun.id))
             if node_id:
@@ -36,6 +38,11 @@ def project_nodes(ctx, snapshot):
                            "elapsed_seconds": ctx.elapsed(), "model_calls": sum(
                                step.get("usage", {}).get("model_calls", 0) for step in state.get("completed_steps", [])
                                if step["epoch"] == ctx.epoch), "data_source": "mock"}
+        if run.budget_json.get("agent_provider_budget_id"):
+            budget = db.get(ProviderBudget, UUID(run.budget_json["agent_provider_budget_id"]))
+            run.budget_json = {**run.budget_json, "provider_calls": budget.calls_used, "token_exposure": budget.tokens_used,
+                               "cost_exposure": float(budget.exposure_cost), "currency": budget.currency,
+                               "inference_mode": state.get("inference_mode", "none")}
         db.commit()
 
 

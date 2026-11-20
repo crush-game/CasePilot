@@ -16,4 +16,5 @@ artifacts/
 output/playwright/
 output/evaluation/
 output/p06/
+output/p07/
 frontend/.playwright-cli/

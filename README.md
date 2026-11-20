@@ -233,6 +233,33 @@ Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/sear
 
 配置依据：[硅基流动价格](https://www.siliconflow.cn/pricing)、[聊天接口](https://docs.siliconflow.cn/docs/api/chat-completions-post)、[embedding 接口](https://docs.siliconflow.cn/docs/api/embeddings-post)、[rerank 接口](https://docs.siliconflow.cn/docs/api/rerank-post)、[BGE-M3 模型卡](https://huggingface.co/BAAI/bge-m3)。实际验收状态见 `docs/development-log.md`。
 
+## P07 Supervisor 与知识调查子图
+
+`supervisor-v1` 是独立于固定 `mock-v1` 的模型编排图。保持默认 Mock，已有运行始终按保存的图版本执行；需要启用新图时，在项目 `.env` 设置 `AFTERSALES_WORKFLOW_GRAPH_VERSION=supervisor-v1`，重启 API/Worker，新建工单才使用新图。真实调用沿用本项目硅基流动 Key。启用前先完成知识索引构建；缺服务、预算或适用资料会留下人工待办，不静默改走固定 Mock。
+
+```powershell
+# 在项目根目录，启动既有持久 Worker
+.\.venv\Scripts\python.exe -m app.workers.runtime worker
+# 人工触发真实图小集：只发送公开虚构资料，需要明确调用授权
+.\.venv\Scripts\python.exe -m app.eval.p07 --max-cost 1
+```
+
+新图由解析节点、Supervisor、知识子图、方案节点及人工暂停组成。模型以封闭 schema 选择知识调查、方案、故障调查或人工；程序校验动作、证据白名单、适用范围和预算，不允许模型扩展权限。P07 的故障调查入口返回 FAULT_TOOLS_NOT_READY，故障工具在 P08 接入。所有方案仍为待人工审核草稿，业务资料标记 mock，真实/契约推理模式分别标记，生成草稿不触发联系或结案。
+
+知识子图作为真正的 LangGraph 子图挂载，继承父图 PostgreSQL Saver，节点为 begin/search/assess/rewrite/context/finish。委派保存目标、输入引用、允许工具、预算和完成条件；返回逐条带引用及适用条件的发现、缺口、冲突、停止原因与原检索动作引用。父图保留多次委派的结构化发现，按引用重新取得原文，不只保存最后一句总结。对原问题的充分性仍是模型判断，程序校验不能证明语义正确，效果需要后续回放评测。
+
+每个子任务至多一次改写和一次相邻段补取；相邻段只能从已返回片段的数据库邻接信息取得，不能传任意路径或网页。发送模型前按输入额度选取完整片段，保留正文/标题/版本/适用范围，记录 context_refs 和 omitted_refs；补取段优先，未知条件保留缺口。冲突立即转人工；无新材料、重复相同动作、补救耗尽、非法引用、服务异常或预算耗尽都有明确停止原因。引用在检查、方案生成和方案投影前的校验节点重新核对活动状态与适用性；生成期间资料失效不会发布方案。
+
+默认每轮300秒、至多20次供应商物理请求（聊天/embedding/rerank与重试共用）、10万Token、0.5元配置费率额度、12个只读工具动作、2个知识子任务；跨轮默认最多5轮、100调用、50万Token、2.5元。模型/费率/策略快照在建单时固定，预算ID和累计量持久保存在 run；重启不刷新本轮截止时间或额度。人工补充进入新预算轮次，保留前轮成本并重新校验证据；调整已有事实走重新调查。程序保留风险预留，费用估算不等于平台账单硬封顶。
+
+每个模型/工具逻辑动作先持久记录再调用，成功结果在检查点落盘前崩溃可复用；若只留下执行中记录而无法确认结果，返回 ACTION_OUTCOME_UNKNOWN 交人工，不自动重复收费请求。网络调用前后检查租约、版本和停止请求，外部网络不在业务事务锁内执行。NodeRun 与 `GET /runs/{id}` 返回主/子节点、结构化输入输出引用与用量，不提供原始思维链。子图的完成步骤在父节点完成后投影到业务时间线，执行中的子图状态由 Saver 保留，暂不承诺每个子节点实时推送。
+
+建单和人工补充可显式填写 product_ref、firmware_version、region、channel，作为带来源的事实；产品型号与设备ID分开，不根据设备ID猜型号。已有值的修改必须重新调查。工作台支持这些字段及知识引用回源，显示文档版本、行号和当前适用状态；旧 Mock 来源说明保持兼容。
+
+真实图小集在单独的 `aftersales_p07_live_<随机值>` 数据库执行两条工单，分别核验有依据草稿和无依据人工。索引预算为总额20%，两工单各40%，总配置费率额度最多1元；可用 `--max-cost` 下调。结果及审计库保留，报告在 Git 忽略的 `output/p07/`。重复试跑应计入同次授权的累计额度；未经授权不运行真实服务。契约测试只验证工程路由，不当作模型决策效果。
+
+子图实现依据 [LangGraph 官方子图说明](https://docs.langchain.com/oss/python/langgraph/use-subgraphs)，锁与检查点语义以当前锁定版本的本地测试为准。实际验收状态见 `docs/development-log.md`。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。

@@ -23,6 +23,7 @@ class ModelRequest(Contract):
     input: dict
     allowed_evidence_refs: list[str]
     data_source: Literal["mock", "real"] = "mock"
+    task_instruction: str | None = Field(default=None, max_length=5000)
 
 
 class ModelUsage(Contract):

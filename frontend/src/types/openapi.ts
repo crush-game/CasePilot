@@ -696,6 +696,14 @@ export interface components {
         FactsPatch: {
             /** Device Ref */
             device_ref?: string | null;
+            /** Product Ref */
+            product_ref?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Region */
+            region?: string | null;
+            /** Channel */
+            channel?: string | null;
             /** Occurred At */
             occurred_at?: string | null;
             /** Occurred At Precision */
@@ -1161,6 +1169,14 @@ export interface components {
             customer_email: string;
             /** Device Ref */
             device_ref?: string | null;
+            /** Product Ref */
+            product_ref?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Region */
+            region?: string | null;
+            /** Channel */
+            channel?: string | null;
             /** Occurred At */
             occurred_at?: string | null;
             /** Occurred At Precision */

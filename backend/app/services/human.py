@@ -118,7 +118,7 @@ def resume(db: Session, actor, task_id: UUID, body):
     run = db.get(Run, task.run_id)
     if run.status != RunStatus.PAUSED or ticket.active_run_id != run.id:
         raise AppError(409, "INVALID_STATE", "待办对应运行已失效")
-    if (run.graph_version != "mock-v1" or not task.checkpoint_ref.get("checkpoint_id")
+    if (run.graph_version not in {"mock-v1", "supervisor-v1"} or not task.checkpoint_ref.get("checkpoint_id")
             or task.reason_code in {"CHECKPOINT_MISSING", "PAUSE_MISMATCH", "GRAPH_VERSION_UNSUPPORTED"}):
         raise AppError(409, "REINVESTIGATION_REQUIRED", "检查点不可直接恢复，请人工处理或重新调查")
     state = latest_snapshot(db, run.id)
@@ -236,13 +236,16 @@ def reinvestigate(db: Session, actor, ticket_id: UUID, body):
     db.flush()  # 先释放活动 run 部分唯一索引，再创建新 run。
     transition(ticket, TicketStatus.QUEUED)
     new_id = uuid4()
-    run = Run(id=new_id, ticket_id=ticket.id, thread_id=str(new_id), graph_version="mock-v1", case_version=ticket.version)
+    from app.agents.contracts import configuration_snapshot
+    execution = configuration_snapshot()
+    run = Run(id=new_id, ticket_id=ticket.id, thread_id=str(new_id),
+              graph_version=execution.get("graph_version", "mock-v1"), case_version=ticket.version)
     db.add(run)
     db.flush()
     ticket.active_run_id, ticket.solution_json = run.id, {}
     patch = body.facts_patch.model_dump(mode="json", exclude_unset=True)
     state = apply_facts(db, ticket, run, state, patch, actor, body.action_id, allow_replace=True)
-    state = {"request": state["request"], "data_source": "mock", "evidence_refs": [],
+    state = {"request": state["request"], "data_source": "mock", "evidence_refs": [], **execution,
              "ticket_metadata": {"priority": ticket.priority, "assignee_id": str(ticket.assignee_id) if ticket.assignee_id else None}}
     save_snapshot(db, ticket, run, state)
     db.add(ExecutionTask(run_id=run.id, kind="start", action_id=body.action_id))
