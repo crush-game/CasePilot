@@ -1,4 +1,5 @@
 """串行验收一期，复用本地测试库与模拟资料。"""
+import argparse
 import json
 from pathlib import Path
 import shutil
@@ -8,7 +9,10 @@ import sys
 
 def main():
     root = Path(__file__).resolve().parents[1]
-    output = root / "output/p10"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--stage", choices=["p10", "p14"], default="p10")
+    stage = parser.parse_args().stage
+    output = root / "output" / stage
     output.mkdir(parents=True, exist_ok=True)
     npm = shutil.which("npm.cmd" if sys.platform == "win32" else "npm")
     if not npm:

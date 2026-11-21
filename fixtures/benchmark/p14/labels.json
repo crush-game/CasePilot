@@ -1,0 +1,190 @@
+{
+  "knowledge": {
+    "K01": {
+      "refs": [
+        "ports-a"
+      ],
+      "conflict": false
+    },
+    "K02": {
+      "refs": [
+        "seal-a"
+      ],
+      "conflict": false
+    },
+    "K03": {
+      "refs": [
+        "ports-b"
+      ],
+      "conflict": false
+    },
+    "K04": {
+      "refs": [],
+      "conflict": false
+    },
+    "K05": {
+      "refs": [
+        "warranty-new"
+      ],
+      "conflict": false
+    },
+    "K06": {
+      "refs": [
+        "reset-one",
+        "reset-two"
+      ],
+      "conflict": true
+    },
+    "K07": {
+      "refs": [
+        "format-wav",
+        "format-flac"
+      ],
+      "conflict": false
+    },
+    "K08": {
+      "refs": [],
+      "conflict": false
+    },
+    "K09": {
+      "refs": [],
+      "conflict": false
+    },
+    "K10": {
+      "refs": [
+        "screen-current"
+      ],
+      "conflict": false
+    },
+    "K11": {
+      "refs": [
+        "format-wav",
+        "format-flac"
+      ],
+      "conflict": false
+    },
+    "K12": {
+      "refs": [],
+      "conflict": false
+    }
+  },
+  "routing": {
+    "S01": {
+      "action": "draft",
+      "required_refs": [
+        "kb:S01:spec"
+      ],
+      "forbidden_tools": [
+        "get_feedbacks"
+      ],
+      "excluded_refs": []
+    },
+    "S02": {
+      "action": "human",
+      "required_refs": [],
+      "forbidden_tools": [
+        "get_feedbacks"
+      ],
+      "excluded_refs": []
+    },
+    "S03": {
+      "action": "draft",
+      "required_refs": [
+        "event:S03:wifi"
+      ],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S04": {
+      "action": "draft",
+      "required_refs": [
+        "kb:S04:faq",
+        "event:S04:wifi"
+      ],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S05": {
+      "action": "draft",
+      "required_refs": [
+        "event:S05:wifi",
+        "event:S05:ota"
+      ],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S06": {
+      "action": "human",
+      "required_refs": [],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S07": {
+      "action": "human",
+      "required_refs": [],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S08": {
+      "action": "human",
+      "required_refs": [],
+      "forbidden_tools": [],
+      "excluded_refs": []
+    },
+    "S09": {
+      "action": "human",
+      "required_refs": [
+        "feedback:S09:a1",
+        "feedback:S09:a2"
+      ],
+      "forbidden_tools": [],
+      "excluded_refs": [
+        "feedback:S09:b",
+        "feedback:S09:foreign"
+      ]
+    },
+    "S10": {
+      "action": "human",
+      "required_refs": [
+        "kb:S10:allow",
+        "kb:S10:deny"
+      ],
+      "forbidden_tools": [
+        "get_feedbacks"
+      ],
+      "excluded_refs": []
+    }
+  },
+  "experience": {
+    "E01": {
+      "refs": [
+        "H01"
+      ]
+    },
+    "E02": {
+      "refs": []
+    },
+    "E03": {
+      "refs": []
+    },
+    "E04": {
+      "refs": []
+    },
+    "E05": {
+      "refs": [
+        "H06"
+      ]
+    },
+    "E06": {
+      "refs": []
+    },
+    "E07": {
+      "refs": [
+        "H02"
+      ]
+    },
+    "E08": {
+      "refs": []
+    }
+  }
+}

@@ -320,6 +320,15 @@ P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contra
 
 `app.eval.structured` 是独立的检索实验入口。同一份模拟原文提供普通片段和结构化声明，两种路径共用型号、固件、有效期及可见状态约束。声明按属性召回不同值的来源并报告冲突。实际对照数据与结果留在 P14。
 
+## P14 复现评测和最终验收
+
+```powershell
+.\.venv\Scripts\python.exe -m app.eval.p14
+.\.venv\Scripts\python.exe scripts/verify_p10.py --stage p14
+```
+
+第一条运行冻结的知识、调查、经验三组离线对照。输入与标签分文件，全部运行后再读取标签，逐例结果、分组、调用与成本写入 `output/evaluation/p14.json`。第二条串行验证整个系统，报告在 `output/p14/`。可引用结果和误差分析见 [开发记录](docs/development-log.md#p14固定对照错误分析与项目证据)。评测使用模拟业务资料，外部真实模型先前仅小集验证，外部渠道仍为本地模拟。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。

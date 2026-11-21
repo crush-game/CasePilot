@@ -70,6 +70,19 @@ def change_publication(db, actor, experience_id, body, *, withdraw_revision=None
     return result
 
 
+def scope_matches(conditions, scope):
+    return all(scope.get(key) == value for key, value in conditions.items())
+
+
+def rank_problems(items, query, limit):
+    corpus = {}
+    for identifier, problem in items.items():
+        terms = tokenize(problem)
+        if terms:
+            corpus[identifier] = {"tf": dict(Counter(terms)), "length": len(terms)}
+    return [identifier for identifier, _ in bm25_scores(corpus, query)[:limit]]
+
+
 def recall(db, query):
     scope = query.model_dump(exclude={"query"})
     rows = db.scalars(select(ExperiencePublication).join(Experience).where(
@@ -77,14 +90,11 @@ def recall(db, query):
         ExperiencePublication.scope_json["product_ref"].astext == query.product_ref,
         ExperiencePublication.scope_json["firmware_version"].astext == query.firmware_version,
     ))
-    eligible = {str(row.id): row for row in rows if all(scope.get(key) == value for key, value in row.scope_json.items())}
-    corpus = {}
-    for identifier, row in eligible.items():
-        terms = tokenize(row.content_json["problem"])
-        if terms:
-            corpus[identifier] = {"tf": dict(Counter(terms)), "length": len(terms)}
+    eligible = {str(row.id): row for row in rows if scope_matches(row.scope_json, scope)}
+    ranked = rank_problems({identifier: row.content_json["problem"] for identifier, row in eligible.items()},
+                           query.query, limit=5)
     return [
         ExperienceHint(publication_id=row.id, revision=row.revision, source_ticket_id=row.content_json["source_ticket_id"],
                        problem=row.content_json["problem"], verified_steps=row.content_json["verified_steps"], conditions=row.scope_json)
-        for identifier, _ in bm25_scores(corpus, query.query)[:5] if (row := eligible.get(identifier)) is not None
+        for identifier in ranked if (row := eligible[identifier]) is not None
     ]

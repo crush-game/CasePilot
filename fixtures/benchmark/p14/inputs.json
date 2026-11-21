@@ -1,0 +1,669 @@
+{
+  "protocol_id": "casepilot-p14-v2",
+  "knowledge_limit": 3,
+  "route_tool_limit": 8,
+  "experience_limit": 1,
+  "knowledge_corpus": {
+    "chunks": [
+      {
+        "ref": "ports-a",
+        "entity": "DEMO-A",
+        "firmware": "1.0",
+        "text": "端口数量为两个。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "ports-b",
+        "entity": "DEMO-A",
+        "firmware": "2.0",
+        "text": "端口数量为三个。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "seal-a",
+        "entity": "DEMO-B",
+        "firmware": "1.0",
+        "text": "防水等级标为 IPX4。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "ports-distractor",
+        "entity": "DEMO-B",
+        "firmware": "1.0",
+        "text": "端口数量是一个。端口仅用于设备连接。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "warranty-old",
+        "entity": "DEMO-C",
+        "firmware": "1.0",
+        "text": "保修月数为六个月，旧政策。",
+        "document_version": 1,
+        "effective_from": "2026-01-01",
+        "status": "superseded"
+      },
+      {
+        "ref": "warranty-new",
+        "entity": "DEMO-C",
+        "firmware": "1.0",
+        "text": "保修月数为十二个月，新政策。",
+        "document_version": 2,
+        "effective_from": "2026-10-01"
+      },
+      {
+        "ref": "warranty-future",
+        "entity": "DEMO-C",
+        "firmware": "1.0",
+        "text": "保修月数未来计划十八个月。",
+        "document_version": 1,
+        "effective_from": "2027-01-01"
+      },
+      {
+        "ref": "reset-one",
+        "entity": "DEMO-D",
+        "firmware": "1.0",
+        "text": "重置时长为八秒。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "reset-two",
+        "entity": "DEMO-D",
+        "firmware": "1.0",
+        "text": "重置时长为十二秒。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "reset-draft",
+        "entity": "DEMO-D",
+        "firmware": "1.0",
+        "text": "重置时长按草案为九十九秒。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "reset-case",
+        "entity": "DEMO-D",
+        "firmware": "1.0",
+        "text": "历史案例的重置时长三十秒。",
+        "document_version": 1,
+        "effective_from": "2026-01-01",
+        "source_type": "experience"
+      },
+      {
+        "ref": "format-wav",
+        "entity": "DEMO-E",
+        "firmware": "1.0",
+        "text": "支持格式包括 WAV。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "format-flac",
+        "entity": "DEMO-E",
+        "firmware": "1.0",
+        "text": "支持格式包括 FLAC。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      },
+      {
+        "ref": "screen-expired",
+        "entity": "DEMO-F",
+        "firmware": "1.0",
+        "text": "屏幕亮度为三百尼特。",
+        "document_version": 1,
+        "effective_from": "2026-01-01",
+        "effective_to": "2026-08-01"
+      },
+      {
+        "ref": "screen-current",
+        "entity": "DEMO-G",
+        "firmware": "1.0",
+        "text": "屏幕亮度为四百尼特。",
+        "document_version": 1,
+        "effective_from": "2026-01-01"
+      }
+    ],
+    "claims": [
+      {
+        "chunk_ref": "ports-a",
+        "field": "ports",
+        "value": "2",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "ports-b",
+        "field": "ports",
+        "value": "3",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "seal-a",
+        "field": "seal",
+        "value": "IPX4",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "ports-distractor",
+        "field": "ports",
+        "value": "1",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "warranty-old",
+        "field": "warranty",
+        "value": "6",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "warranty-new",
+        "field": "warranty",
+        "value": "12",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "warranty-future",
+        "field": "warranty",
+        "value": "18",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "reset-one",
+        "field": "reset",
+        "value": "8",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "reset-two",
+        "field": "reset",
+        "value": "12",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "reset-draft",
+        "field": "reset",
+        "value": "99",
+        "status": "draft",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "reset-case",
+        "field": "reset",
+        "value": "30",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "format-wav",
+        "field": "formats",
+        "value": "WAV",
+        "status": "active",
+        "cardinality": "multi"
+      },
+      {
+        "chunk_ref": "format-flac",
+        "field": "formats",
+        "value": "FLAC",
+        "status": "active",
+        "cardinality": "multi"
+      },
+      {
+        "chunk_ref": "screen-expired",
+        "field": "screen",
+        "value": "300",
+        "status": "active",
+        "cardinality": "single"
+      },
+      {
+        "chunk_ref": "screen-current",
+        "field": "screen",
+        "value": "400",
+        "status": "active",
+        "cardinality": "single"
+      }
+    ],
+    "aliases": {
+      "ports": [
+        "端口数量",
+        "几个口"
+      ],
+      "seal": [
+        "防水等级",
+        "防泼水评级"
+      ],
+      "formats": [
+        "支持格式",
+        "能播哪些格式"
+      ],
+      "reset": [
+        "重置时长",
+        "长按多久"
+      ],
+      "warranty": [
+        "保修月数",
+        "保多久"
+      ],
+      "screen": [
+        "屏幕亮度",
+        "有多亮"
+      ]
+    }
+  },
+  "knowledge_cases": [
+    {
+      "id": "K01",
+      "group": "常规",
+      "scope": {
+        "entity": "DEMO-A",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "端口数量？"
+    },
+    {
+      "id": "K02",
+      "group": "别名",
+      "scope": {
+        "entity": "DEMO-B",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "防泼水评级是多少？"
+    },
+    {
+      "id": "K03",
+      "group": "版本",
+      "scope": {
+        "entity": "DEMO-A",
+        "firmware": "2.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "几个口？"
+    },
+    {
+      "id": "K04",
+      "group": "版本",
+      "scope": {
+        "entity": "DEMO-A",
+        "firmware": null,
+        "as_of": "2026-11-21"
+      },
+      "question": "端口数量？"
+    },
+    {
+      "id": "K05",
+      "group": "时效",
+      "scope": {
+        "entity": "DEMO-C",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "保多久？"
+    },
+    {
+      "id": "K06",
+      "group": "冲突",
+      "scope": {
+        "entity": "DEMO-D",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "重置时长？"
+    },
+    {
+      "id": "K07",
+      "group": "并列",
+      "scope": {
+        "entity": "DEMO-E",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "支持格式？"
+    },
+    {
+      "id": "K08",
+      "group": "无依据",
+      "scope": {
+        "entity": "DEMO-F",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "屏幕亮度？"
+    },
+    {
+      "id": "K09",
+      "group": "无依据",
+      "scope": {
+        "entity": "DEMO-B",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "保修月数多少？"
+    },
+    {
+      "id": "K10",
+      "group": "常规",
+      "scope": {
+        "entity": "DEMO-G",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "屏幕亮度？"
+    },
+    {
+      "id": "K11",
+      "group": "别名",
+      "scope": {
+        "entity": "DEMO-E",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "能播哪些格式？"
+    },
+    {
+      "id": "K12",
+      "group": "无依据",
+      "scope": {
+        "entity": "UNLISTED",
+        "firmware": "1.0",
+        "as_of": "2026-11-21"
+      },
+      "question": "端口数量？"
+    }
+  ],
+  "route_cases": [
+    {
+      "id": "S01",
+      "group": "咨询",
+      "topic": "spec",
+      "requires_knowledge": true,
+      "domains": [],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "这款设备支持哪种连接？"
+    },
+    {
+      "id": "S02",
+      "group": "缺条件",
+      "topic": "spec",
+      "requires_knowledge": true,
+      "domains": [],
+      "product_ref": null,
+      "firmware_version": null,
+      "question": "我的设备怎样连接？"
+    },
+    {
+      "id": "S03",
+      "group": "故障",
+      "topic": "connection",
+      "requires_knowledge": false,
+      "domains": [
+        "wifi"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "开车时连接断开了"
+    },
+    {
+      "id": "S04",
+      "group": "混合",
+      "topic": "connection",
+      "requires_knowledge": true,
+      "domains": [
+        "wifi"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "熄火后断开了，指南有说明吗？"
+    },
+    {
+      "id": "S05",
+      "group": "混合领域",
+      "topic": "connection",
+      "requires_knowledge": false,
+      "domains": [
+        "wifi",
+        "ota"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "刚升级固件就出现连接中断"
+    },
+    {
+      "id": "S06",
+      "group": "无日志",
+      "topic": "connection",
+      "requires_knowledge": false,
+      "domains": [
+        "wifi"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "昨天 WiFi 断开了"
+    },
+    {
+      "id": "S07",
+      "group": "无领域证据",
+      "topic": "connection",
+      "requires_knowledge": false,
+      "domains": [
+        "ota"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "升级似乎失败了"
+    },
+    {
+      "id": "S08",
+      "group": "接口失败",
+      "topic": "connection",
+      "requires_knowledge": true,
+      "domains": [
+        "wifi"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "我想查一下连接中断"
+    },
+    {
+      "id": "S09",
+      "group": "多反馈",
+      "topic": "connection",
+      "requires_knowledge": false,
+      "domains": [
+        "wifi"
+      ],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "同一时段的连接问题请核对一下",
+      "device_ref": "DEVICE-A"
+    },
+    {
+      "id": "S10",
+      "group": "冲突",
+      "topic": "policy",
+      "requires_knowledge": true,
+      "domains": [],
+      "product_ref": "PILOT-01",
+      "firmware_version": "1.0",
+      "question": "政策允许调整连接设置吗？"
+    }
+  ],
+  "experience_memory": [
+    {
+      "id": "H01",
+      "family": "archive-ble",
+      "question": "蓝牙配对失败无法连接",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0",
+        "platform": "android"
+      },
+      "state": "active",
+      "recorded_at": "2026-09-30"
+    },
+    {
+      "id": "H02",
+      "family": "archive-other-ble",
+      "question": "蓝牙配对失败，无法连接蓝牙设备",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "2.0",
+        "platform": "ios"
+      },
+      "state": "active",
+      "recorded_at": "2026-09-30"
+    },
+    {
+      "id": "H03",
+      "family": "archive-ota",
+      "question": "升级进度停止固件更新失败",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "state": "candidate",
+      "recorded_at": "2026-09-30"
+    },
+    {
+      "id": "H04",
+      "family": "archive-audio",
+      "question": "播放音量过低，音频听不清",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "state": "withdrawn",
+      "recorded_at": "2026-09-30"
+    },
+    {
+      "id": "H05",
+      "family": "archive-activation",
+      "question": "配对失败需要恢复激活",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "state": "candidate",
+      "recorded_at": "2026-09-30"
+    },
+    {
+      "id": "H06",
+      "family": "archive-disk",
+      "question": "设备清理存储空间不足",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "state": "active",
+      "recorded_at": "2026-09-30"
+    }
+  ],
+  "experience_cases": [
+    {
+      "id": "E01",
+      "group": "适用",
+      "family": "support-a1",
+      "question": "Android 蓝牙配对失败",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0",
+        "platform": "android"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E02",
+      "group": "范围缺失",
+      "family": "support-a2",
+      "question": "蓝牙配对失败",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E03",
+      "group": "状态未审",
+      "family": "support-b1",
+      "question": "固件更新失败进度不动",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E04",
+      "group": "已撤回",
+      "family": "support-c1",
+      "question": "播放音量低听不清",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E05",
+      "group": "适用",
+      "family": "support-d1",
+      "question": "存储空间不足",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E06",
+      "group": "不匹配",
+      "family": "support-e1",
+      "question": "历史工单收不到纸质发票",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "1.0"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E07",
+      "group": "适用",
+      "family": "support-f1",
+      "question": "iOS 蓝牙配对失败",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "2.0",
+        "platform": "ios"
+      },
+      "recorded_at": "2026-11-21"
+    },
+    {
+      "id": "E08",
+      "group": "范围错配",
+      "family": "support-g1",
+      "question": "蓝牙配对失败",
+      "scope": {
+        "product_ref": "EVAL-P",
+        "firmware_version": "2.0",
+        "platform": "android"
+      },
+      "recorded_at": "2026-11-21"
+    }
+  ]
+}
