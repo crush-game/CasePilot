@@ -58,6 +58,16 @@ const faultReport = computed(() => {
   const value = ticket.value?.solution_json.fault_report || human.value?.payload_json.fault_report
   return value && typeof value === 'object' && 'findings' in value && Array.isArray(value.findings) ? value as FaultReport : null
 })
+const solutionFacts = computed(() => {
+  const facts = ticket.value?.solution_json.confirmed_facts
+  return facts && typeof facts === 'object' ? scopeFields.filter(field => field.key in facts).map(field => ({
+    label: field.label, value: String((facts as Record<string, unknown>)[field.key]),
+  })) : []
+})
+const solutionObservations = computed(() => {
+  const rows = ticket.value?.solution_json.observations
+  return Array.isArray(rows) ? rows as { point: string; applicability: string }[] : []
+})
 function provenance(field: string) {
   const fact = [...(ticket.value?.facts || [])].sort((a, b) => b.fact_version - a.fact_version).find(item => item.field === field)
   return fact?.source_type === 'human' ? '人工补充' : fact ? '建单录入' : ''
@@ -76,7 +86,18 @@ function eventTitle(event: TicketEvent) {
 <template>
   <router-link to="/tickets" class="back-link"><Icon name="back" :size="16" />返回工单队列</router-link><LoadNotice :error="error" :offline="offline" @retry="refresh" /><el-skeleton v-if="loading && !ticket" :rows="8" animated class="panel detail-skeleton" /><section v-else-if="!ticket" class="panel empty-state"><Icon name="file" :size="36" /><h1>暂时无法读取工单</h1><p>请检查工单是否存在，或稍后重试。</p><el-button @click="refresh">重新读取</el-button></section>
   <template v-else><div class="page-heading detail-heading"><div><div class="eyebrow" :title="ticket.ticket_no">{{ shortTicket(ticket.ticket_no) }}</div><h1>工单详情</h1><p>创建于 {{ displayTime(ticket.created_at) }} · 最近更新 {{ displayTime(ticket.updated_at) }}</p></div><StatusTag :status="ticket.status" /></div><div class="detail-layout"><div class="detail-main"><section class="panel summary-panel"><div class="section-title"><span class="section-icon"><Icon name="inbox" :size="18" /></span><h2>问题摘要</h2><span class="priority" :class="ticket.priority">{{ priorityLabels[ticket.priority] }}</span></div><p class="feedback-text wrap-text">{{ ticket.feedback_text }}</p><div class="facts-grid"><div><span class="fact-label">客户邮箱</span><strong>{{ ticket.customer_email }}</strong><span class="source-label">{{ provenance('customer_email') }}</span></div><div><span class="fact-label">设备型号 / 标识</span><strong :class="{ missing: !ticket.device_ref }">{{ ticket.device_ref || '待补充' }}</strong><span class="source-label">{{ provenance('device_ref') }}</span></div><div><span class="fact-label">发生时间（北京时间）</span><strong :class="{ missing: !ticket.occurred_at }">{{ ticket.occurred_at ? displayTime(ticket.occurred_at) : '待补充' }}</strong><span class="source-label">{{ provenance('occurred_at') }}</span></div></div><div class="facts-grid"><div v-for="field in scopeFields.filter(field => factValue(field.key))" :key="field.key"><span class="fact-label">{{ field.label }}</span><strong>{{ factValue(field.key) }}</strong><span class="source-label">{{ provenance(field.key) }}</span></div></div><div v-if="human && ['unclaimed','claimed'].includes(human.status)" class="notice warning"><Icon name="users" :size="18" /><span>{{ reasonLabels[human.reason_code] || '需要人工核查' }}，请在人工操作区域处理。</span></div></section>
-      <section v-if="ticket.solution_json.internal_plan" class="panel solution-panel"><div class="section-title"><span class="section-icon"><Icon name="file" :size="18" /></span><h2>内部处理方案</h2><el-tag type="info" size="small">{{ ticket.solution_json.inference_mode === 'real' ? '模型草稿 · 模拟业务资料' : '模拟方案' }}</el-tag></div><p class="wrap-text plan-text">{{ ticket.solution_json.internal_plan }}</p><el-button text @click="openSources">查看来源说明（{{ evidence.length }}）<Icon name="arrow" :size="16" /></el-button></section>
+      <section v-if="ticket.solution_json.internal_plan" class="panel solution-panel"><div class="section-title"><span class="section-icon"><Icon name="file" :size="18" /></span><h2>内部处理方案</h2><el-tag type="info" size="small">{{ ticket.solution_json.inference_mode === 'real' ? '模型草稿 · 模拟业务资料' : '模拟方案' }}</el-tag></div><template v-if="solutionFacts.length">
+        <h3>已确认的调查范围</h3>
+        <p class="wrap-text">{{ solutionFacts.map(fact => `${fact.label}：${fact.value}`).join(' · ') }}</p>
+      </template>
+      <template v-if="solutionObservations.length">
+        <h3>有引用的调查观察</h3>
+        <p v-for="(finding, index) in solutionObservations" :key="index" class="wrap-text">
+          {{ finding.point }}<br /><span class="muted">{{ finding.applicability }}</span>
+        </p>
+      </template>
+      <h3>建议操作</h3>
+      <p class="wrap-text plan-text">{{ ticket.solution_json.internal_plan }}</p><el-button text @click="openSources">查看来源说明（{{ evidence.length }}）<Icon name="arrow" :size="16" /></el-button></section>
       <section v-if="faultReport" class="panel solution-panel"><div class="section-title"><h2>故障调查记录</h2><el-tag type="info" size="small">模拟业务资料</el-tag></div><p class="muted">已查看领域：{{ faultReport.inspected_domains.join('、') || '尚无足够资料' }} · {{ faultReport.source_kind === 'telemetry' ? '仅WiFi埋点，详细日志缺失' : faultReport.source_kind === 'detailed_log' ? '详细日志' : '尚未读取日志' }}</p><p v-if="faultReport.viewed_range.start" class="muted">查看范围：{{ displayTime(faultReport.viewed_range.start) }} 至 {{ displayTime(faultReport.viewed_range.end) }}</p><p v-for="(finding, index) in faultReport.findings" :key="index" class="wrap-text">{{ finding.point }}<br /><span class="muted small">{{ finding.applicability }}</span></p><div v-for="(cause, index) in faultReport.candidate_causes" :key="index" class="notice subtle"><strong>未确认的候选原因</strong><p class="wrap-text">{{ cause.hypothesis }}</p><p class="wrap-text">需验证：{{ cause.required_verification }}</p></div><p v-for="(limit, index) in faultReport.limitations" :key="index" class="muted wrap-text">{{ limit }}</p><el-button text @click="openSources">查看来源说明（{{ evidence.length }}）</el-button></section>
       <section class="panel timeline-panel"><div class="section-title"><span class="section-icon"><Icon name="clock" :size="18" /></span><h2>处理时间线</h2><span class="muted small">仅显示操作与完成步骤</span></div><div v-if="!events.length" class="muted">暂无处理记录。</div><el-button v-if="events.length > visibleEvents" text @click="visibleEvents += 20">查看更早记录</el-button><ol class="timeline"><li v-for="event in events.slice(-visibleEvents).reverse()" :key="event.id"><span class="timeline-dot"></span><div><strong>{{ eventTitle(event) }}</strong><p v-if="event.payload_json.reason_code" class="muted">{{ reasonLabels[String(event.payload_json.reason_code)] || '请人工核查' }}</p><p v-if="event.payload_json.reason" class="muted wrap-text">{{ event.payload_json.reason }}</p><time>{{ displayTime(event.created_at) }}</time></div></li></ol><div v-if="run" class="timeline-foot">{{ run.status === 'succeeded' ? '本次自动调查已结束，处理结果以人工确认为准。' : '进展会自动更新。' }}</div></section>
     </div><aside class="detail-side"><ActionPanel :ticket="ticket" :human="human" :offline="offline" :reload="reload" /><div class="notice subtle"><Icon name="shield" :size="18" /><span>方案仅供处理参考，结案需要明确确认。</span></div></aside></div></template>

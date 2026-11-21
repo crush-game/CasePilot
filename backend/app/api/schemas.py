@@ -224,6 +224,7 @@ class ReinvestigateInput(ReasonAction):
 
 class CloseInput(ReasonAction):
     outcome: Literal["resolved", "unresolved"]
+    verified_steps: str | None = Field(default=None, min_length=1, max_length=2000)
 
 
 class ReviewInput(VersionedAction):
@@ -261,3 +262,37 @@ class ActionResult(BaseModel):
     version: int
     run_id: UUID | None = None
     human_task_id: UUID | None = None
+
+
+class ExperienceReviewInput(ReasonAction):
+    decision: Literal["review", "archive"]
+
+
+class ExperienceContent(BaseModel):
+    problem: str
+    conditions: dict[str, str]
+    result_note: str
+    verified_steps: str
+    confirmation: Literal["human_verified", "customer_confirmed"]
+    data_source: Literal["mock"]
+    evidence_refs: list[str]
+    limitations: list[str]
+
+
+class ExperienceView(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: UUID
+    source_ticket_id: UUID
+    source_run_id: UUID | None
+    source_action_id: UUID
+    result_version: int
+    version: int
+    status: Literal["candidate", "reviewed", "archived"]
+    content_json: ExperienceContent
+    review_json: dict
+    created_at: datetime
+
+
+class ExperienceList(BaseModel):
+    items: list[ExperienceView]
+    next_cursor: UUID | None

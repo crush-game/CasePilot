@@ -20,7 +20,12 @@ let activePage
 
 function fixture(...args) {
   const result = spawnSync(python, [helper, ...args], { cwd: root, encoding: 'utf8', env: environment, windowsHide: true, timeout: 45000 })
-  if (result.status !== 0) throw new Error(`测试夹具失败（${args[0]}），请检查测试库与本地服务。`)
+  if (result.status !== 0) {
+    // 仅报告进程状态和异常类型，避免把子进程配置或测试登录信息写入报告。
+    const errors = [...(result.stderr ?? '').matchAll(/^([\w.]+(?:Error|Exception)):/gm)]
+    const cause = result.error?.code || errors.at(-1)?.[1] || result.signal || 'unknown'
+    throw new Error(`测试夹具失败（${args[0]}，退出状态 ${result.status}，${cause}）`)
+  }
   return JSON.parse(result.stdout)
 }
 
@@ -201,6 +206,7 @@ try {
     await waitStatus(page, '等待客户反馈')
     await page.getByRole('button', { name: '确认结果并结案' }).click()
     await page.getByRole('dialog').getByLabel('结案说明').fill('人工核验模拟问题已经解决。')
+    await page.getByLabel('已核验有效的操作（选填）').fill('重新连接后验证设备在线')
     await page.getByRole('button', { name: '确认结案', exact: true }).click()
     await waitStatus(page, '已解决')
     await page.reload()
@@ -209,6 +215,24 @@ try {
     const result = await (await context.request.get(`${origin}/api/v1/tickets/${created.ticket_id}`)).json()
     assert.equal(result.active_run_id, null)
     assert.equal(result.latest_run_id, created.run_id)
+  })
+
+  await scenario('P09 明确确认后生成经验候选并审阅归档', async () => {
+    assert(fixture('experience', '--ticket-id', created.ticket_id).processed)
+    await page.getByRole('link', { name: '查看本工单经验候选' }).click()
+    await visible(page.getByRole('heading', { name: '经验候选', exact: true }))
+    await visible(page.getByText('重新连接后验证设备在线', { exact: false }))
+    await visible(page.getByRole('link', { name: /查看来源工单与证据/ }))
+    await page.getByRole('button', { name: '标记已审阅' }).click()
+    await page.getByLabel('审阅说明').fill('已复核结案确认与有效操作')
+    await page.getByRole('button', { name: '确认提交', exact: true }).click()
+    await page.getByLabel('审阅状态').selectOption('reviewed')
+    await visible(page.getByText('已复核结案确认与有效操作', { exact: false }))
+    await page.getByRole('button', { name: '归档候选' }).click()
+    await page.getByLabel('归档说明').fill('验收结束后归档')
+    await page.getByRole('button', { name: '确认提交', exact: true }).click()
+    await page.getByLabel('审阅状态').selectOption('archived')
+    await visible(page.getByText('验收结束后归档', { exact: false }))
   })
 
   let faultCases

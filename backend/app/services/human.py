@@ -10,6 +10,8 @@ from app.domain.enums import HumanTaskStatus, RunStatus, TicketStatus
 from app.domain.errors import AppError
 from app.domain.states import TERMINAL_STATUSES
 from app.repositories.models import ExecutionTask, HumanAction, HumanTask, Run, Ticket, TicketFact
+from app.services.experiences import enqueue_candidate
+from app.services.solutions import check_draft
 from app.services.tickets import reserve_request
 from app.services.workflow_common import (
     append_event, audit_action, latest_snapshot, lock_ticket, require_run_lock,
@@ -119,6 +121,7 @@ def resume(db: Session, actor, task_id: UUID, body):
     if run.status != RunStatus.PAUSED or ticket.active_run_id != run.id:
         raise AppError(409, "INVALID_STATE", "待办对应运行已失效")
     if (run.graph_version not in {"mock-v1", "supervisor-v1", "supervisor-v2"} or not task.checkpoint_ref.get("checkpoint_id")
+            or task.payload_json.get("requires_reinvestigation")
             or task.reason_code in {"CHECKPOINT_MISSING", "PAUSE_MISMATCH", "GRAPH_VERSION_UNSUPPORTED"}):
         raise AppError(409, "REINVESTIGATION_REQUIRED", "检查点不可直接恢复，请人工处理或重新调查")
     state = latest_snapshot(db, run.id)
@@ -185,8 +188,12 @@ def takeover(db: Session, actor, ticket_id: UUID, body):
     return finish_action(db, record, ticket, actor, body, "tickets.takeover")
 
 
-def close(db: Session, actor, ticket_id: UUID, body):
-    record, replay = begin_action(db, actor, f"tickets.close:{ticket_id}", body)
+def close(db: Session, actor, ticket_id: UUID, body, *, confirmation="human_verified"):
+    operation = "tickets.close" if confirmation == "human_verified" else "tickets.customer_confirmed"
+    payload = body.model_dump(mode="json")
+    if body.verified_steps is None:
+        payload.pop("verified_steps")
+    record, replay = reserve_request(db, actor.id, f"tickets.close:{ticket_id}", str(body.action_id), payload)
     if replay:
         result = record.response_ref
         db.commit()
@@ -213,9 +220,12 @@ def close(db: Session, actor, ticket_id: UUID, body):
             run.status, run.stop_reason = RunStatus.SUPERSEDED, "MANUALLY_CLOSED"
         db.execute(update(ExecutionTask).where(ExecutionTask.run_id == run.id, ExecutionTask.status.in_(["queued", "running"]))
                    .values(status="cancelled", lease_token=None, lease_until=None))
+    if body.outcome == "resolved":
+        ticket.result_json = {**ticket.result_json, "confirmation": confirmation, "verified_steps": body.verified_steps}
+        enqueue_candidate(db, ticket, run, body.action_id)
     append_event(db, ticket, "ticket.closed", ticket.result_json)
     ticket.active_run_id = None
-    return finish_action(db, record, ticket, actor, body, "tickets.close")
+    return finish_action(db, record, ticket, actor, body, operation)
 
 
 def review(db: Session, actor, ticket_id: UUID, body):
@@ -230,6 +240,9 @@ def review(db: Session, actor, ticket_id: UUID, body):
     value = {**ticket.solution_json, "reviewed": body.decision == "approve"}
     if body.reply_draft is not None:
         value["reply_draft"] = body.reply_draft
+    if body.decision == "approve":
+        run = db.get(Run, ticket.active_run_id)
+        value = check_draft(db, ticket, run, latest_snapshot(db, run.id), value)
     ticket.solution_json = value
     ticket.version += 1
     ticket.updated_at = func.now()
@@ -286,6 +299,8 @@ def contacted(db: Session, actor, ticket_id: UUID, body):
     ticket = lock_ticket(db, ticket_id, body.expected_version)
     if ticket.status != TicketStatus.PENDING_CONFIRMATION or not ticket.solution_json.get("reviewed"):
         raise AppError(409, "REVIEW_REQUIRED", "请先审核方案，再记录已联系客户")
+    run = db.get(Run, ticket.active_run_id)
+    ticket.solution_json = check_draft(db, ticket, run, latest_snapshot(db, run.id), ticket.solution_json)
     transition(ticket, TicketStatus.WAITING_CUSTOMER)
     ticket.result_json = {"contacted": True, "note": body.reason, "source": "human", "data_source": "mock"}
     append_event(db, ticket, "customer.contacted", {"note": body.reason, "source": "human"})

@@ -277,6 +277,14 @@ Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/v1/knowledge/sear
 
 P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contract-tests.xml`，标记 `data_source=mock`、`inference_mode=contract`、`real_acceptance=false`。场景包含WiFi/OTA跨领域、无数据/下载错误、多反馈人工恢复、跨工单/版本隔离、脱敏、坏ZIP、预算、无进展和真实进程强杀恢复。它验证工程闭环，不报告模型诊断准确率。真实企业接口需取得授权并核验契约后单独适配；后续阶段不自动启用或花费真实模型预算。
 
+## P09 方案校验与经验审阅
+
+工单详情分别展示已确认的调查范围、有引用的调查观察和建议操作。草稿入库、人工审核通过及记录已联系客户时，都按工单范围重新读取知识或日志引用。引用缺失、失效、跨运行或校验和变化时，需要重新调查。人工审核负责判断建议是否确由材料支持及是否适合发给客户。
+
+业务人员选择已解决并填写结案说明后，系统在同一事务登记经验提取任务。可选填经过核验的有效操作，系统从结案记录和调查来源提取脱敏候选，保留确认方式、适用条件、来源工单、运行、结果版本和引用。仅有联系记录、草稿审核或未解决结案时不会登记成功经验。历史终态不自动补录。
+
+升级本地 PostgreSQL 时运行 `python -m app.manage migrate`，迁移 `0006_experiences` 新增经验表。日常运行 `python -m app.workers.runtime worker` 会同时处理工单和待提取经验。工作台「经验候选」可查看、审阅或归档，`GET /api/v1/experiences` 可按工单和状态筛选。审阅使用版本检查、幂等操作标识和审计记录。发布与检索复用安排在 P13。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。

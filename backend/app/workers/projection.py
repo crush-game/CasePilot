@@ -5,6 +5,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.domain.enums import TicketStatus
+from app.domain.errors import AppError
+from app.services.solutions import check_draft
 from app.repositories.models import HumanAction, HumanTask, NodeRun, ProviderBudget
 from app.services.workflow_common import append_event, latest_snapshot, save_snapshot, transition
 
@@ -65,8 +67,21 @@ def project_result(ctx, snapshot, failure_reason=None):
                 human = db.get(HumanTask, action.human_task_id)
                 if human.status == "resuming":
                     human.status = "completed"
+        previous = latest_snapshot(db, run.id)
+        validated = None
+        invalid_draft = False
+        if complete and not paused and not failure_reason:
+            try:
+                validated = check_draft(db, ticket, run, {**previous, **state}, state.get("solution", {}))
+            except AppError as exc:
+                failure_reason = exc.code
+                invalid_draft = True
         if paused or failure_reason:
             payload = {"reason_code": failure_reason, "missing_fields": [], "data_source": "mock"} if failure_reason else paused.value
+            if invalid_draft:
+                payload.update(requires_reinvestigation=True, evidence_refs=state.get("evidence_refs", []))
+                if state.get("fault_report"):
+                    payload["fault_report"] = state["fault_report"]
             pause_key = f"failure:{task.id}" if failure_reason else paused.id
             old_tasks = list(db.scalars(select(HumanTask).where(
                 HumanTask.ticket_id == ticket.id, HumanTask.status.in_(["unclaimed", "claimed", "resuming"]),
@@ -85,13 +100,14 @@ def project_result(ctx, snapshot, failure_reason=None):
         else:
             transition(ticket, TicketStatus.PENDING_CONFIRMATION)
             run.status, run.stop_reason = "succeeded", None
-            ticket.solution_json = state["solution"]
+            ticket.solution_json = validated
             append_event(db, ticket, "run.completed", {"data_source": "mock", "stop_reason": "solution_ready"})
         run.cancel_requested = False
         run.checkpoint_ref = ref
         run.budget_json = {**run.budget_json, "elapsed_seconds": ctx.elapsed(), "data_source": "mock"}
-        previous = latest_snapshot(db, run.id)
         projected = {**previous, **state, "request": previous["request"], "budget_epoch": ctx.epoch}
+        if validated is not None:
+            projected["solution"] = validated
         save_snapshot(db, ticket, run, projected)
         task.status, task.lease_token, task.lease_until = "succeeded", None, None
         db.commit()

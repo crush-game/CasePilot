@@ -21,9 +21,10 @@ def main():
     os.environ["AFTERSALES_DATABASE_URL"] = raw_url
     os.environ["AFTERSALES_ALLOWED_ORIGINS"] = json.dumps(["http://127.0.0.1:15173"])
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker"])
+    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience"])
     parser.add_argument("--run-id", type=UUID)
     parser.add_argument("--actor-id", type=UUID)
+    parser.add_argument("--ticket-id", type=UUID)
     args = parser.parse_args()
 
     from sqlalchemy.orm import Session
@@ -42,6 +43,11 @@ def main():
         if args.run_id is None:
             raise SystemExit("必须指定本次测试 run-id")
         print(json.dumps({"processed": run_once(args.run_id)}))
+    elif args.mode == "experience":
+        from app.services.experiences import process_candidate
+        if not args.ticket_id:
+            raise SystemExit("必须指定本次测试工单")
+        print(json.dumps({"processed": process_candidate(args.ticket_id)}))
     elif args.mode in {"faults", "fault-worker"}:
         # 仅浏览器验收夹具使用HTTP契约替身；业务代码不依赖tests。
         import sys

@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0005_faults"
+SCHEMA_VERSION = "0006_experiences"
 
 
 def choices(column, enum):
@@ -484,3 +484,26 @@ class LogEvidence(Base):
     domain: Mapped[str] = mapped_column(String(30))
     text: Mapped[str] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64))
+
+
+class Experience(Base):
+    __tablename__ = "experiences"
+    __table_args__ = (
+        UniqueConstraint("source_ticket_id", "result_version", name="uq_experiences_result"),
+        ForeignKeyConstraint(["source_run_id", "source_ticket_id"], ["business.runs.id", "business.runs.ticket_id"],
+                             name="fk_experiences_run_ticket"),
+        CheckConstraint("status IN ('queued','candidate','reviewed','archived')", name="status"),
+        CheckConstraint("version >= 1 AND result_version >= 1", name="versions"),
+        Index("ix_experiences_status_created", "status", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    source_ticket_id: Mapped[UUID] = mapped_column(ForeignKey("business.tickets.id"))
+    source_run_id: Mapped[UUID | None] = mapped_column()
+    source_action_id: Mapped[UUID] = mapped_column(ForeignKey("business.audit_events.action_id", deferrable=True, initially="DEFERRED"), unique=True)
+    result_version: Mapped[int] = mapped_column(Integer)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    status: Mapped[str] = mapped_column(String(16), default="queued")
+    content_json: Mapped[dict] = mapped_column(JSONB)
+    review_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -27,6 +27,7 @@ class CaseState(TypedDict, total=False):
     next_action: str
     stop_reason: str | None
     solution: dict
+    solution_contract: str
     complete: bool
     model_usage: dict
 

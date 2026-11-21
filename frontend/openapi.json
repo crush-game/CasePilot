@@ -953,6 +953,153 @@
         }
       }
     },
+    "/api/v1/experiences": {
+      "get": {
+        "summary": "List Experiences",
+        "operationId": "list_experiences_api_v1_experiences_get",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "candidate",
+                    "reviewed",
+                    "archived"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "ticket_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperienceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiences/{experience_id}/review": {
+      "post": {
+        "summary": "Review Experience",
+        "operationId": "review_experience_api_v1_experiences__experience_id__review_post",
+        "parameters": [
+          {
+            "name": "experience_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Experience Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExperienceReviewInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperienceView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/knowledge/documents": {
       "post": {
         "tags": [
@@ -1935,6 +2082,19 @@
               "unresolved"
             ],
             "title": "Outcome"
+          },
+          "verified_steps": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 2000,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified Steps"
           }
         },
         "additionalProperties": false,
@@ -2218,6 +2378,209 @@
           "created_at"
         ],
         "title": "EventView"
+      },
+      "ExperienceContent": {
+        "properties": {
+          "problem": {
+            "type": "string",
+            "title": "Problem"
+          },
+          "conditions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Conditions"
+          },
+          "result_note": {
+            "type": "string",
+            "title": "Result Note"
+          },
+          "verified_steps": {
+            "type": "string",
+            "title": "Verified Steps"
+          },
+          "confirmation": {
+            "type": "string",
+            "enum": [
+              "human_verified",
+              "customer_confirmed"
+            ],
+            "title": "Confirmation"
+          },
+          "data_source": {
+            "type": "string",
+            "const": "mock",
+            "title": "Data Source"
+          },
+          "evidence_refs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Refs"
+          },
+          "limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Limitations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "problem",
+          "conditions",
+          "result_note",
+          "verified_steps",
+          "confirmation",
+          "data_source",
+          "evidence_refs",
+          "limitations"
+        ],
+        "title": "ExperienceContent"
+      },
+      "ExperienceList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExperienceView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "ExperienceList"
+      },
+      "ExperienceReviewInput": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Action Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "review",
+              "archive"
+            ],
+            "title": "Decision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_id",
+          "expected_version",
+          "reason",
+          "decision"
+        ],
+        "title": "ExperienceReviewInput"
+      },
+      "ExperienceView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "source_ticket_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Ticket Id"
+          },
+          "source_run_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Run Id"
+          },
+          "source_action_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Action Id"
+          },
+          "result_version": {
+            "type": "integer",
+            "title": "Result Version"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "reviewed",
+              "archived"
+            ],
+            "title": "Status"
+          },
+          "content_json": {
+            "$ref": "#/components/schemas/ExperienceContent"
+          },
+          "review_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Review Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source_ticket_id",
+          "source_run_id",
+          "source_action_id",
+          "result_version",
+          "version",
+          "status",
+          "content_json",
+          "review_json",
+          "created_at"
+        ],
+        "title": "ExperienceView"
       },
       "FactView": {
         "properties": {

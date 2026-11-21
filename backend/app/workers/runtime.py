@@ -200,6 +200,9 @@ def main():
         while True:
             try:
                 processed = run_once(args.run_id, reconcile=args.mode == "reconcile")
+                if args.mode == "worker" and args.run_id is None:
+                    from app.services.experiences import process_candidate
+                    processed = process_candidate() or processed
             except (psycopg.Error, SQLAlchemyError):
                 if args.once:
                     raise SystemExit("存储暂不可用，本次未完成任务处理。") from None

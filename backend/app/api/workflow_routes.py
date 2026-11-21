@@ -76,7 +76,7 @@ def close(ticket_id: UUID, body: CloseInput, user: BusinessUser, db: Database):
 def feedback(ticket_id: UUID, body: FeedbackInput, user: BusinessUser, db: Database, response: Response):
     data = body.model_dump(exclude={"outcome"})
     if body.outcome == "resolved":
-        return human.close(db, user, ticket_id, CloseInput(**data, outcome="resolved"))
+        return human.close(db, user, ticket_id, CloseInput(**data, outcome="resolved"), confirmation="customer_confirmed")
     if body.outcome == "unresolved":
         response.status_code = 202
         return human.reinvestigate(db, user, ticket_id, ReinvestigateInput(**data))

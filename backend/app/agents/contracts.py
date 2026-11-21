@@ -78,8 +78,8 @@ def configuration_snapshot():
     from app.providers.configuration import load_provider_config
     settings = get_settings()
     if settings.workflow_graph_version == "mock-v1":
-        return {}
-    value = {"graph_version": settings.workflow_graph_version, "agent_config": {
+        return {"solution_contract": "p09-v1"}
+    value = {"solution_contract": "p09-v1", "graph_version": settings.workflow_graph_version, "agent_config": {
         "providers": load_provider_config(settings.provider_config_path).model_dump(mode="json"),
         "policy": AgentPolicy(timeout_seconds=settings.run_timeout_seconds,
                               max_steps=settings.max_agent_steps).model_dump(mode="json"), "prompt_version": "p07-v1"}}

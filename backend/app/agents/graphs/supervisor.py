@@ -273,7 +273,10 @@ def build_graph(saver, ctx, *, faults=False):
         fault_report = state.get("fault_report", {}) if faults else {}
         if not refs or report.get("status") != "completed" and fault_report.get("status") != "completed":
             raise ProviderFailure("INSUFFICIENT_EVIDENCE")
-        value, usage = model(state, "generate_solution", SolutionDraft, SOLUTION,
+        instruction = SOLUTION
+        if state.get("solution_contract") == "p09-v1":
+            instruction += " internal_plan只写建议操作与验证步骤。已确认事实和调查观察由系统从事实记录与引用独立展示；不得将候选原因写成已确认事实。"
+        value, usage = model(state, "generate_solution", SolutionDraft, instruction,
             {"question": state["request"]["feedback_text"], "confirmed_scope": io.scope(state),
              "findings": [finding for row in state.get("knowledge_history", []) for finding in row["result"]["findings"]],
              **({"fault_findings": fault_report.get("findings", []), "candidate_causes": fault_report.get("candidate_causes", []),

@@ -291,6 +291,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/experiences": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Experiences */
+        get: operations["list_experiences_api_v1_experiences_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiences/{experience_id}/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Experience */
+        post: operations["review_experience_api_v1_experiences__experience_id__review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/documents": {
         parameters: {
             query?: never;
@@ -594,6 +628,8 @@ export interface components {
              * @enum {string}
              */
             outcome: "resolved" | "unresolved";
+            /** Verified Steps */
+            verified_steps?: string | null;
         };
         /** DocumentActionResult */
         DocumentActionResult: {
@@ -688,6 +724,96 @@ export interface components {
             event_type: string;
             /** Payload Json */
             payload_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** ExperienceContent */
+        ExperienceContent: {
+            /** Problem */
+            problem: string;
+            /** Conditions */
+            conditions: {
+                [key: string]: string;
+            };
+            /** Result Note */
+            result_note: string;
+            /** Verified Steps */
+            verified_steps: string;
+            /**
+             * Confirmation
+             * @enum {string}
+             */
+            confirmation: "human_verified" | "customer_confirmed";
+            /**
+             * Data Source
+             * @constant
+             */
+            data_source: "mock";
+            /** Evidence Refs */
+            evidence_refs: string[];
+            /** Limitations */
+            limitations: string[];
+        };
+        /** ExperienceList */
+        ExperienceList: {
+            /** Items */
+            items: components["schemas"]["ExperienceView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+        };
+        /** ExperienceReviewInput */
+        ExperienceReviewInput: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Expected Version */
+            expected_version: number;
+            /** Reason */
+            reason: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "review" | "archive";
+        };
+        /** ExperienceView */
+        ExperienceView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Source Ticket Id
+             * Format: uuid
+             */
+            source_ticket_id: string;
+            /** Source Run Id */
+            source_run_id: string | null;
+            /**
+             * Source Action Id
+             * Format: uuid
+             */
+            source_action_id: string;
+            /** Result Version */
+            result_version: number;
+            /** Version */
+            version: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "candidate" | "reviewed" | "archived";
+            content_json: components["schemas"]["ExperienceContent"];
+            /** Review Json */
+            review_json: {
                 [key: string]: unknown;
             };
             /**
@@ -2062,6 +2188,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActionResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_experiences_api_v1_experiences_get: {
+        parameters: {
+            query?: {
+                status?: ("candidate" | "reviewed" | "archived") | null;
+                ticket_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperienceList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_experience_api_v1_experiences__experience_id__review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experience_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExperienceReviewInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperienceView"];
                 };
             };
             /** @description Validation Error */

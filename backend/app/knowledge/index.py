@@ -113,11 +113,12 @@ def search(db: Session, query: SearchQuery, provider_session=None) -> SearchResu
     return result
 
 
-def get_citation(db: Session, chunk_id: UUID, query: KnowledgeScope) -> Citation:
+def get_citation(db: Session, chunk_id: UUID, query: KnowledgeScope, *, commit=True) -> Citation:
     publication_lock(db)
     row = db.execute(select(KBChunk, KBDocument).join(KBDocument).where(KBChunk.id == chunk_id)).first()
     if row is None:
         raise AppError(404, "CITATION_NOT_FOUND", "知识引用不存在")
     result = citation_value(*row, query, db.scalar(select(func.clock_timestamp())))
-    db.commit()
+    if commit:
+        db.commit()
     return result
