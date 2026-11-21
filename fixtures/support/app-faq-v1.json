@@ -1,0 +1,26 @@
+{
+  "version": "app-faq-v1",
+  "entries": [
+    {
+      "ref": "faq:demo-connection:v1",
+      "title": "模拟设备连接指南",
+      "questions": [
+        "怎么连接设备",
+        "如何连接设备",
+        "怎样连接设备"
+      ],
+      "product": "DEMO-01",
+      "firmware": "1.0",
+      "answer": "打开模拟 App 的设备页，选择「添加设备」，确认设备处于配对模式，然后选择列表中对应的设备。"
+    },
+    {
+      "ref": "faq:demo-version:v1",
+      "title": "模拟 App 版本查看指南",
+      "questions": [
+        "怎么查看app版本",
+        "如何查看app版本"
+      ],
+      "answer": "打开模拟 App 的「设置」，在「关于」中查看 App 版本。"
+    }
+  ]
+}

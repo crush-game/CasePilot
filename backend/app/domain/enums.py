@@ -4,6 +4,7 @@ from enum import StrEnum
 class Role(StrEnum):
     BUSINESS = "business"
     KNOWLEDGE_ADMIN = "knowledge_admin"
+    CONSUMER = "consumer"
 
 
 class TicketStatus(StrEnum):

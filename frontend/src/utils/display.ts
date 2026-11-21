@@ -35,6 +35,7 @@ export const reasonLabels: Record<string, string> = {
   LOG_LIMIT_EXCEEDED: '日志超过读取上限', ARTIFACT_CORRUPTED: '日志校验和已变化',
   ENTERPRISE_SOURCE_CHANGED: '模拟资料在建单后已变化，请重新调查', UNSUPPORTED_DOMAIN: '当前领域尚不支持',
   FAULT_MODEL_REQUESTED_HUMAN: '故障调查建议人工核查',
+  CONSUMER_HANDOFF: '消费者请求人工协助',
   INVALID_SOLUTION: '方案缺少必要草稿或证据', UNTRUSTED_MODEL_EVIDENCE: '方案引用超出本次调查范围',
 }
 export function displayTime(value?: string | null): string {

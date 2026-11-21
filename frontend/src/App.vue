@@ -19,7 +19,7 @@ async function logout() {
 </script>
 
 <template>
-  <router-view v-if="route.path === '/login'" />
+  <router-view v-if="route.path === '/login' || route.path === '/support'" />
   <div v-else class="app-shell">
     <a class="skip-link" href="#main-content">跳转到主要内容</a>
     <aside class="sidebar">

@@ -53,12 +53,12 @@ async function scenario(name, run) {
   console.log(`通过：${name}`)
 }
 
-async function login(page, user) {
+async function login(page, user, target = '/tickets') {
   await page.goto(`${origin}/login`)
   await page.getByLabel('账号', { exact: true }).fill(user.login)
   await page.getByLabel('密码', { exact: true }).fill(user.password)
   await page.getByRole('button', { name: '登录工作台' }).click()
-  await page.waitForURL(url => url.pathname === '/tickets')
+  await page.waitForURL(url => url.pathname === target)
 }
 
 async function visible(locator) { await locator.waitFor({ state: 'visible', timeout: 15000 }) }
@@ -284,6 +284,42 @@ try {
     await visible(page.getByText('登录已过期，请重新登录后继续。'))
     await login(page, users.knowledge)
     await visible(page.getByRole('heading', { name: '当前账号没有工单处理权限' }))
+  })
+  await scenario('P11 消费者追问、离线草稿与人工回执幂等', async () => {
+    const consumer = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'zh-CN' })
+    const support = activePage = await consumer.newPage()
+    support.on('pageerror', error => pageErrors.push(error.message))
+    await login(support, users.consumer, '/support')
+    await visible(support.getByRole('heading', { name: '售后客服' }))
+    await consumer.setOffline(true)
+    await support.getByLabel('问题', { exact: true }).fill('怎么连接设备？')
+    await visible(support.getByText('离线期间输入保留在当前标签页', { exact: false }))
+    assert(await support.getByRole('button', { name: '发送', exact: true }).isDisabled())
+    await consumer.setOffline(false)
+    await support.reload()
+    assert.equal(await support.getByLabel('问题', { exact: true }).inputValue(), '怎么连接设备？')
+    await support.getByRole('button', { name: '发送', exact: true }).click()
+    await support.getByLabel('设备型号', { exact: true }).fill('DEMO-01')
+    await support.getByLabel('固件版本', { exact: true }).fill('1.0')
+    await support.getByRole('button', { name: '提交设备信息' }).click()
+    await visible(support.getByText('来源：模拟设备连接指南'))
+    let accepted
+    await support.route('**/api/v1/support/turns', async route => {
+      const response = await route.fetch()
+      assert.equal(response.status(), 201)
+      accepted = await response.json()
+      await route.abort()
+    }, { times: 1 })
+    await support.getByRole('button', { name: '转人工', exact: true }).click()
+    await visible(support.getByText('提交结果待确认。重试沿用原请求。', { exact: true }))
+    assert(accepted.ticket_no.startsWith('CP-'))
+    await support.reload()
+    await support.getByRole('button', { name: '重试提交' }).click()
+    await visible(support.getByRole('status').filter({ hasText: accepted.ticket_no }))
+    assert.equal(await support.getByText('已转人工。可在本会话查看工单进度。', { exact: true }).count(), 1)
+    assert(await support.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+    activePage = page
+    await consumer.close()
   })
   assert.deepEqual(pageErrors, [], '浏览器出现未捕获脚本错误')
   writeFileSync(resolve(output, 'e2e-report.json'), JSON.stringify({ passed: results.length, results }, null, 2))

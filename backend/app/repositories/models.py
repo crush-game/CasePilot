@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0006_experiences"
+SCHEMA_VERSION = "0007_support"
 
 
 def choices(column, enum):
@@ -506,4 +506,26 @@ class Experience(Base):
     status: Mapped[str] = mapped_column(String(16), default="queued")
     content_json: Mapped[dict] = mapped_column(JSONB)
     review_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportConversation(Base):
+    __tablename__ = "support_conversations"
+    __table_args__ = (Index("ix_support_conversations_owner_created", "owner_id", "created_at", "id"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    owner_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    ticket_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.tickets.id"), unique=True)
+    context_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportTurn(Base):
+    __tablename__ = "support_turns"
+    __table_args__ = (Index("ix_support_turns_conversation_id", "conversation_id", "id"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"))
+    request_text: Mapped[str] = mapped_column(Text)
+    reply_json: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

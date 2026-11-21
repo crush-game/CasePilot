@@ -100,7 +100,7 @@ def main():
         setup_checkpoints()
         prefix = f"e2e_{uuid4().hex[:12]}"
         users = {}
-        for key, role in (("business", Role.BUSINESS), ("knowledge", Role.KNOWLEDGE_ADMIN)):
+        for key, role in (("business", Role.BUSINESS), ("knowledge", Role.KNOWLEDGE_ADMIN), ("consumer", Role.CONSUMER)):
             password = secrets.token_urlsafe(24)
             with Session(get_engine(), expire_on_commit=False) as db:
                 user = create_user(db, f"{prefix}_{key}", password, role)

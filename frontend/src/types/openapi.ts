@@ -325,6 +325,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/support/conversations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversations */
+        get: operations["conversations_api_v1_support_conversations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/conversations/{conversation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Conversation */
+        get: operations["conversation_api_v1_support_conversations__conversation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/support/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Turn */
+        post: operations["turn_api_v1_support_turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/documents": {
         parameters: {
             query?: never;
@@ -1135,7 +1186,7 @@ export interface components {
          * Role
          * @enum {string}
          */
-        Role: "business" | "knowledge_admin";
+        Role: "business" | "knowledge_admin" | "consumer";
         /**
          * RunStatus
          * @enum {string}
@@ -1351,6 +1402,109 @@ export interface components {
              * @constant
              */
             redacted: true;
+        };
+        /** SupportAccepted */
+        SupportAccepted: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ticket No */
+            ticket_no?: string | null;
+            ticket_status?: components["schemas"]["TicketStatus"] | null;
+            turn: components["schemas"]["SupportTurnView"];
+        };
+        /** SupportConversationView */
+        SupportConversationView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ticket No */
+            ticket_no?: string | null;
+            ticket_status?: components["schemas"]["TicketStatus"] | null;
+        };
+        /** SupportDetail */
+        SupportDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Ticket No */
+            ticket_no?: string | null;
+            ticket_status?: components["schemas"]["TicketStatus"] | null;
+            /** Turns */
+            turns: components["schemas"]["SupportTurnView"][];
+        };
+        /** SupportMessage */
+        SupportMessage: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /**
+             * Action
+             * @default message
+             * @enum {string}
+             */
+            action: "message" | "clarify" | "handoff" | "solved";
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /** Product Ref */
+            product_ref?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+        };
+        /** SupportReply */
+        SupportReply: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "answer" | "clarify" | "handoff" | "received" | "feedback";
+            /** Text */
+            text: string;
+            /** Evidence Ref */
+            evidence_ref?: string | null;
+            /** Evidence Title */
+            evidence_title?: string | null;
+        };
+        /** SupportTurnView */
+        SupportTurnView: {
+            /** Id */
+            id: number;
+            /** Request Text */
+            request_text: string;
+            reply_json: components["schemas"]["SupportReply"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** TicketCreate */
         TicketCreate: {
@@ -2257,6 +2411,90 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExperienceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    conversations_api_v1_support_conversations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportConversationView"][];
+                };
+            };
+        };
+    };
+    conversation_api_v1_support_conversations__conversation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                conversation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    turn_api_v1_support_turns_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportMessage"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportAccepted"];
                 };
             };
             /** @description Validation Error */

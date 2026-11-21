@@ -13,7 +13,7 @@ from app.domain.enums import Role, TicketStatus
 from app.domain.errors import AppError
 from app.repositories.models import (
     AppUser, AuditEvent, CaseSnapshot, ExecutionTask, IdempotencyRecord,
-    Run, Ticket, TicketEvent, TicketFact,
+    HumanTask, Run, Ticket, TicketEvent, TicketFact,
 )
 
 
@@ -47,13 +47,15 @@ def get_ticket(db: Session, ticket_id: UUID) -> Ticket:
     return ticket
 
 
-def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> dict:
+def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate, *, source="manual", handoff=False, commit=True) -> dict:
     payload = body.model_dump(mode="json")
-    record, replay = reserve_request(db, actor.id, "tickets.create", key, payload)
+    operation = "tickets.create" if source == "manual" else f"tickets.create:{source}"
+    record, replay = reserve_request(db, actor.id, operation, key, payload)
     if replay:
-        result = record.response_ref
-        db.commit()
-        return result
+        if commit:
+            db.commit()
+        return record.response_ref
+    initial_status = TicketStatus.WAITING_HUMAN if handoff else TicketStatus.QUEUED
     ticket_id, run_id, task_id = uuid4(), uuid4(), uuid4()
     action_id = record.id
     ticket = Ticket(
@@ -62,20 +64,26 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> 
         device_ref=body.device_ref, occurred_at=body.occurred_at,
         occurred_at_original=body.occurred_at.isoformat() if body.occurred_at else None,
         occurred_at_precision=body.occurred_at_precision, priority=body.priority,
-        created_by=actor.id, active_run_id=None,
+        created_by=actor.id, active_run_id=None, source=source, status=initial_status,
     )
     db.add(ticket)
     db.flush()
     from app.agents.contracts import configuration_snapshot, SCOPE_FIELDS
-    execution = configuration_snapshot()
+    execution = {} if handoff else configuration_snapshot()
     run = Run(
         id=run_id, ticket_id=ticket_id, thread_id=str(run_id),
         graph_version=execution.get("graph_version", "mock-v1"), case_version=1,
+        status="paused" if handoff else "queued", stop_reason="CONSUMER_HANDOFF" if handoff else None,
     )
     db.add(run)
     db.flush()
     ticket.active_run_id = run_id
-    db.add(ExecutionTask(id=task_id, run_id=run_id, kind="start", action_id=action_id))
+    if handoff:
+        db.add(HumanTask(id=task_id, ticket_id=ticket_id, run_id=run_id, pause_key="consumer-handoff",
+            reason_code="CONSUMER_HANDOFF", status="unclaimed", checkpoint_ref={},
+            payload_json={"data_source": "mock", "requires_reinvestigation": True}))
+    else:
+        db.add(ExecutionTask(id=task_id, run_id=run_id, kind="start", action_id=action_id))
     state = {
         "ticket_id": str(ticket_id), "run_id": str(run_id), "case_version": 1,
         "request": payload, "data_source": "mock", "evidence_refs": [], **execution,
@@ -90,19 +98,20 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate) -> 
             ))
     db.add(TicketEvent(
         ticket_id=ticket_id, run_id=run_id, event_type="ticket.created",
-        payload_json={"status": TicketStatus.QUEUED, "version": 1, "actor_id": str(actor.id)},
+        payload_json={"status": initial_status, "version": 1, "actor_id": str(actor.id)},
     ))
     result = TicketCreated(
         ticket_id=ticket_id, ticket_no=ticket.ticket_no, run_id=run_id,
-        task_id=task_id, version=1, status=TicketStatus.QUEUED,
+        task_id=task_id, version=1, status=initial_status,
     ).model_dump(mode="json")
     record.response_ref = result
     db.add(AuditEvent(
         action_id=action_id, actor_id=actor.id, ticket_id=ticket_id,
-        operation="tickets.create", patch={"source": "manual"}, result=result,
+        operation=operation, patch={"source": source}, result=result,
     ))
     # 所有对象和幂等响应一起提交，提交失败时不能向调用者返回 202。
-    db.commit()
+    if commit:
+        db.commit()
     return result
 
 
