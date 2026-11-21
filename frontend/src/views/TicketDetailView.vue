@@ -10,6 +10,8 @@ import StatusTag from '../components/StatusTag.vue'
 import LoadNotice from '../components/LoadNotice.vue'
 import ActionPanel from '../components/ActionPanel.vue'
 import SupportReplies from '../components/SupportReplies.vue'
+import ExperienceHints from '../components/ExperienceHints.vue'
+import type { components } from '../types/openapi'
 const id = String(useRoute().params.id)
 const ticket = ref<TicketDetail | null>(null)
 const human = ref<HumanTask | null>(null)
@@ -22,6 +24,17 @@ const citations = ref<Record<string, { title: string; text: string; document_ver
 const sourceError = ref('')
 const scopeFields = [{ key: 'product_ref', label: '产品型号' }, { key: 'firmware_version', label: '固件版本' }, { key: 'region', label: '适用地区' }, { key: 'channel', label: '业务渠道' }, { key: 'platform', label: '设备平台' }, { key: 'app_version', label: 'App版本' }] as const
 function factValue(field: string) { const value = [...(ticket.value?.facts || [])].sort((a, b) => b.fact_version - a.fact_version).find(row => row.field === field)?.value_json.value; return typeof value === 'string' ? value : '' }
+const recallScope = computed<components['schemas']['RecallQuery'] | null>(() => {
+  const product = factValue('product_ref')
+  const version = factValue('firmware_version')
+  if (!ticket.value || !product || !version) return null
+  const platform = factValue('platform')
+  return {
+    query: ticket.value.feedback_text.slice(0, 500), product_ref: product, firmware_version: version,
+    region: factValue('region') || null, channel: factValue('channel') || null,
+    app_version: factValue('app_version') || null, platform: platform === 'android' || platform === 'ios' ? platform : null,
+  }
+})
 async function openSources() {
   drawer.value = true; sourceError.value = ''; citations.value = {}
   const scope = new URLSearchParams(scopeFields.filter(field => !['platform', 'app_version'].includes(field.key)).flatMap(field => factValue(field.key) ? [[field.key, factValue(field.key)]] : []))
@@ -102,6 +115,7 @@ function eventTitle(event: TicketEvent) {
       <h3>建议操作</h3>
       <p class="wrap-text plan-text">{{ ticket.solution_json.internal_plan }}</p><el-button text @click="openSources">查看来源说明（{{ evidence.length }}）<Icon name="arrow" :size="16" /></el-button></section>
       <section v-if="faultReport" class="panel solution-panel"><div class="section-title"><h2>故障调查记录</h2><el-tag type="info" size="small">模拟业务资料</el-tag></div><p class="muted">已查看领域：{{ faultReport.inspected_domains.join('、') || '尚无足够资料' }} · {{ faultReport.source_kind === 'telemetry' ? '仅WiFi埋点，详细日志缺失' : faultReport.source_kind === 'detailed_log' ? '详细日志' : '尚未读取日志' }}</p><p v-if="faultReport.viewed_range.start" class="muted">查看范围：{{ displayTime(faultReport.viewed_range.start) }} 至 {{ displayTime(faultReport.viewed_range.end) }}</p><p v-for="(finding, index) in faultReport.findings" :key="index" class="wrap-text">{{ finding.point }}<br /><span class="muted small">{{ finding.applicability }}</span></p><div v-for="(cause, index) in faultReport.candidate_causes" :key="index" class="notice subtle"><strong>未确认的候选原因</strong><p class="wrap-text">{{ cause.hypothesis }}</p><p class="wrap-text">需验证：{{ cause.required_verification }}</p></div><p v-for="(limit, index) in faultReport.limitations" :key="index" class="muted wrap-text">{{ limit }}</p><el-button text @click="openSources">查看来源说明（{{ evidence.length }}）</el-button></section>
+      <ExperienceHints v-if="recallScope" :key="JSON.stringify(recallScope)" :scope="recallScope" :offline="offline" />
       <SupportReplies v-if="['app_support', 'mock_channel'].includes(ticket.source)" :ticket="ticket" />
       <section class="panel timeline-panel"><div class="section-title"><span class="section-icon"><Icon name="clock" :size="18" /></span><h2>处理时间线</h2><span class="muted small">仅显示操作与完成步骤</span></div><div v-if="!events.length" class="muted">暂无处理记录。</div><el-button v-if="events.length > visibleEvents" text @click="visibleEvents += 20">查看更早记录</el-button><ol class="timeline"><li v-for="event in events.slice(-visibleEvents).reverse()" :key="event.id"><span class="timeline-dot"></span><div><strong>{{ eventTitle(event) }}</strong><p v-if="event.payload_json.reason_code" class="muted">{{ reasonLabels[String(event.payload_json.reason_code)] || '请人工核查' }}</p><p v-if="event.payload_json.reason" class="muted wrap-text">{{ event.payload_json.reason }}</p><p v-if="event.event_type === 'support.message_received'" class="wrap-text">{{ event.payload_json.message }}</p><time>{{ displayTime(event.created_at) }}</time></div></li></ol><div v-if="run" class="timeline-foot">{{ run.status === 'succeeded' ? '本次自动调查已结束，处理结果以人工确认为准。' : '进展会自动更新。' }}</div></section>
     </div><aside class="detail-side"><ActionPanel :ticket="ticket" :human="human" :offline="offline" :reload="reload" /><div class="notice subtle"><Icon name="shield" :size="18" /><span>方案仅供处理参考，结案需要明确确认。</span></div></aside></div></template>

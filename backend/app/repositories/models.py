@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0008_delivery"
+SCHEMA_VERSION = "0009_releases"
 
 
 def choices(column, enum):
@@ -573,4 +573,25 @@ class SupportDelivery(Base):
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_error: Mapped[str | None] = mapped_column(String(64))
     provider_ref: Mapped[str | None] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ExperiencePublication(Base):
+    __tablename__ = "experience_publications"
+    __table_args__ = (
+        CheckConstraint("status IN ('active','withdrawn') AND revision >= 1", name="status_revision"),
+        UniqueConstraint("experience_id", "revision", name="uq_experience_publications_revision"),
+        Index("uq_experience_publications_active", "experience_id", unique=True, postgresql_where=text("status = 'active'")),
+        Index("ix_experience_publications_problem", "problem_key", postgresql_where=text("status = 'active'")),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    experience_id: Mapped[UUID] = mapped_column(ForeignKey("business.experiences.id"))
+    revision: Mapped[int] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))
+    problem_key: Mapped[str] = mapped_column(String(64))
+    scope_json: Mapped[dict] = mapped_column(JSONB)
+    content_json: Mapped[dict] = mapped_column(JSONB)
+    note: Mapped[str] = mapped_column(Text)
+    withdrawal_note: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

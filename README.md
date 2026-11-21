@@ -312,6 +312,14 @@ P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contra
 
 人工服务日历通过 `AFTERSALES_SERVICE_CALENDAR` 配置，北京时间，星期一为 0，可设置关闭日期。示例见 `.env.example`。未配置时回执提供通用人工服务提示。开放时间仅说明何时开始人工服务，具体进度可查工单。
 
+## P13 已发布经验与声明实验
+
+业务账号审核已确认解决的案例后，知识管理员可在 `GET /api/v1/experience-release-candidates` 取候选 ID，通过 `POST /api/v1/experiences/{id}/publications` 提交 `action_id` 和 `reason` 发布。须有已核验措施、确定型号和固件版本。相同问题适用范围重叠时先复核已有版本。发布记录可查询历史，通过 `POST /api/v1/experiences/{id}/publications/{revision}/withdraw` 撤回指定版本，重发产生新版本。
+
+业务工单有型号及固件时，「已发布历史案例」可以按范围召回。其他已记录条件必须同样匹配。召回显示历史措施和来源工单，作为人工排查参考。撤回或归档会从后续召回移除。知识库检索及当前工单的证据引用仍来自各自的正式来源。
+
+`app.eval.structured` 是独立的检索实验入口。同一份模拟原文提供普通片段和结构化声明，两种路径共用型号、固件、有效期及可见状态约束。声明按属性召回不同值的来源并报告冲突。实际对照数据与结果留在 P14。
+
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。

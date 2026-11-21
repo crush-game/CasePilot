@@ -4,10 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Query
 from sqlalchemy import select
 
-from app.api.dependencies import BusinessUser, Database
+from app.api.dependencies import BusinessUser, Database, KnowledgeAdmin
 from app.api.schemas import ExperienceList, ExperienceReviewInput, ExperienceView
-from app.repositories.models import Experience
+from app.repositories.models import Experience, ExperiencePublication
 from app.services.experiences import review
+from app.services import publications
+from app.api.publication_schemas import ExperienceHint, PublicationCommand, PublicationView, RecallQuery
 
 
 router = APIRouter(prefix="/api/v1")
@@ -32,3 +34,31 @@ def list_experiences(
 @router.post("/experiences/{experience_id}/review", response_model=ExperienceView)
 def review_experience(experience_id: UUID, body: ExperienceReviewInput, user: BusinessUser, db: Database):
     return review(db, user, experience_id, body)
+
+
+@router.get("/experience-release-candidates", response_model=list[ExperienceView])
+def release_candidates(user: KnowledgeAdmin, db: Database, limit: int = Query(50, ge=1, le=100)):
+    return list(db.scalars(select(Experience).where(Experience.status == "reviewed")
+                          .order_by(Experience.created_at.desc(), Experience.id.desc()).limit(limit)))
+
+
+@router.get("/experiences/{experience_id}/publications", response_model=list[PublicationView])
+def release_history(experience_id: UUID, user: KnowledgeAdmin, db: Database):
+    rows = db.scalars(select(ExperiencePublication).where(ExperiencePublication.experience_id == experience_id)
+                      .order_by(ExperiencePublication.revision.desc()))
+    return [publications.publication_view(row) for row in rows]
+
+
+@router.post("/experiences/{experience_id}/publications", response_model=PublicationView, status_code=201)
+def publish(experience_id: UUID, body: PublicationCommand, user: KnowledgeAdmin, db: Database):
+    return publications.change_publication(db, user, experience_id, body)
+
+
+@router.post("/experiences/{experience_id}/publications/{revision}/withdraw", response_model=PublicationView)
+def withdraw(experience_id: UUID, revision: int, body: PublicationCommand, user: KnowledgeAdmin, db: Database):
+    return publications.change_publication(db, user, experience_id, body, withdraw_revision=revision)
+
+
+@router.post("/experience-recall", response_model=list[ExperienceHint])
+def recall(body: RecallQuery, user: BusinessUser, db: Database):
+    return publications.recall(db, body)

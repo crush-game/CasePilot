@@ -347,6 +347,44 @@ try {
     await business.close()
     await consumer.close()
   })
+  await scenario('P13 发布后按范围找回历史案例并验证撤回', async () => {
+    const business = await browser.newContext({ locale: 'zh-CN' })
+    const operator = activePage = await business.newPage()
+    operator.on('pageerror', error => pageErrors.push(error.message))
+    await login(operator, users.business)
+    const scope = { product_ref: `P13-${crypto.randomUUID()}`, firmware_version: '1.0' }
+    const makeTicket = () => operator.evaluate(async value => {
+      const response = await fetch('/api/v1/tickets', { method: 'POST', headers: {
+        'Content-Type': 'application/json', 'Idempotency-Key': crypto.randomUUID(),
+        'X-CSRF-Token': sessionStorage.getItem('casepilot.csrf') || '',
+      }, body: JSON.stringify(value) })
+      if (response.status !== 202) throw new Error('演示工单未创建')
+      return response.json()
+    }, { ...scope, customer_email: 'experience@example.test', feedback_text: '设备连接反复断开' })
+    const source = await makeTicket()
+    const close = await post(operator, `/tickets/${source.ticket_id}/close`, {
+      action_id: crypto.randomUUID(), expected_version: source.version, outcome: 'resolved',
+      reason: '已复核连接恢复', verified_steps: '重新配对并复测连接',
+    })
+    assert.equal(close.status, 200)
+    assert(fixture('experience', '--ticket-id', source.ticket_id).processed)
+    const listing = await business.request.get(`${origin}/api/v1/experiences?ticket_id=${source.ticket_id}`)
+    const [candidate] = (await listing.json()).items
+    assert.equal((await post(operator, `/experiences/${candidate.id}/review`, {
+      action_id: crypto.randomUUID(), expected_version: candidate.version, decision: 'review', reason: '复核来源',
+    })).status, 200)
+    const path = `/experiences/${candidate.id}/publications`
+    assert.equal((await post(page, path, { action_id: crypto.randomUUID(), reason: '核对适用范围' })).status, 201)
+    const ongoing = await makeTicket()
+    await operator.goto(`${origin}/tickets/${ongoing.ticket_id}`)
+    await operator.getByRole('button', { name: '查找同范围案例' }).click()
+    await visible(operator.getByText('重新配对并复测连接', { exact: true }))
+    assert.equal((await post(page, `${path}/1/withdraw`, { action_id: crypto.randomUUID(), reason: '结束演示' })).status, 200)
+    await operator.getByRole('button', { name: '查找同范围案例' }).click()
+    await visible(operator.getByText('当前没有匹配的已发布案例。', { exact: true }))
+    activePage = page
+    await business.close()
+  })
   assert.deepEqual(pageErrors, [], '浏览器出现未捕获脚本错误')
   writeFileSync(resolve(output, 'e2e-report.json'), JSON.stringify({ passed: results.length, results }, null, 2))
   console.log(`浏览器验收通过：${results.length} 个场景。`)

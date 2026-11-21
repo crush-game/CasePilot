@@ -325,6 +325,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/experience-release-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Release Candidates */
+        get: operations["release_candidates_api_v1_experience_release_candidates_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiences/{experience_id}/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Release History */
+        get: operations["release_history_api_v1_experiences__experience_id__publications_get"];
+        put?: never;
+        /** Publish */
+        post: operations["publish_api_v1_experiences__experience_id__publications_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experiences/{experience_id}/publications/{revision}/withdraw": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw */
+        post: operations["withdraw_api_v1_experiences__experience_id__publications__revision__withdraw_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/experience-recall": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recall */
+        post: operations["recall_api_v1_experience_recall_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/support/conversations": {
         parameters: {
             query?: never;
@@ -910,6 +979,35 @@ export interface components {
             /** Limitations */
             limitations: string[];
         };
+        /** ExperienceHint */
+        ExperienceHint: {
+            /**
+             * Publication Id
+             * Format: uuid
+             */
+            publication_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Source Ticket Id
+             * Format: uuid
+             */
+            source_ticket_id: string;
+            /** Problem */
+            problem: string;
+            /** Verified Steps */
+            verified_steps: string;
+            /** Conditions */
+            conditions: {
+                [key: string]: string;
+            };
+            /**
+             * Source Type
+             * @default verified_case
+             * @constant
+             */
+            source_type: "verified_case";
+        };
         /** ExperienceList */
         ExperienceList: {
             /** Items */
@@ -1272,6 +1370,49 @@ export interface components {
          * @enum {string}
          */
         Priority: "low" | "normal" | "high" | "urgent";
+        /** PublicationCommand */
+        PublicationCommand: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Reason */
+            reason: string;
+        };
+        /** PublicationView */
+        PublicationView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Experience Id
+             * Format: uuid
+             */
+            experience_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "active" | "withdrawn";
+            /** Conditions */
+            conditions: {
+                [key: string]: string;
+            };
+            /** Note */
+            note: string;
+            /** Withdrawal Note */
+            withdrawal_note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ReasonAction */
         ReasonAction: {
             /**
@@ -1283,6 +1424,23 @@ export interface components {
             expected_version: number;
             /** Reason */
             reason: string;
+        };
+        /** RecallQuery */
+        RecallQuery: {
+            /** Query */
+            query: string;
+            /** Product Ref */
+            product_ref: string;
+            /** Firmware Version */
+            firmware_version: string;
+            /** Platform */
+            platform?: ("android" | "ios") | null;
+            /** App Version */
+            app_version?: string | null;
+            /** Region */
+            region?: string | null;
+            /** Channel */
+            channel?: string | null;
         };
         /** ReinvestigateInput */
         ReinvestigateInput: {
@@ -2570,6 +2728,172 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ExperienceView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_candidates_api_v1_experience_release_candidates_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperienceView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    release_history_api_v1_experiences__experience_id__publications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experience_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_api_v1_experiences__experience_id__publications_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experience_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    withdraw_api_v1_experiences__experience_id__publications__revision__withdraw_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                experience_id: string;
+                revision: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublicationCommand"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicationView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    recall_api_v1_experience_recall_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecallQuery"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExperienceHint"][];
                 };
             };
             /** @description Validation Error */

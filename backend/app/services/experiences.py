@@ -1,13 +1,13 @@
 """从明确确认的结案记录生成待审经验。"""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.agents.contracts import SCOPE_FIELDS
 from app.api.schemas import ExperienceView
 from app.domain.errors import AppError
 from app.repositories.database import get_engine
-from app.repositories.models import AuditEvent, Experience
+from app.repositories.models import AuditEvent, Experience, ExperiencePublication
 from app.services.tickets import reserve_request
 from app.services.workflow_common import latest_snapshot
 from app.tools.redaction import redact
@@ -64,6 +64,9 @@ def review(db, actor, experience_id, body):
     if row.status == "archived" or (body.decision == "review" and row.status != "candidate"):
         raise AppError(409, "INVALID_STATE", "当前状态不允许此审阅操作")
     row.status = "reviewed" if body.decision == "review" else "archived"
+    if row.status == "archived":
+        db.execute(update(ExperiencePublication).where(ExperiencePublication.experience_id == row.id,
+            ExperiencePublication.status == "active").values(status="withdrawn", withdrawal_note="候选已归档"))
     row.version += 1
     row.review_json = {"decision": body.decision, "reason": redact(body.reason), "actor_id": str(actor.id)}
     response = ExperienceView.model_validate(row).model_dump(mode="json")
