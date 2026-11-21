@@ -26,10 +26,11 @@ class SupportMessage(InputModel):
 
 
 class SupportReply(BaseModel):
-    kind: Literal["answer", "clarify", "handoff", "received", "feedback"]
+    kind: Literal["answer", "clarify", "handoff", "received", "feedback", "agent_reply"]
     text: str
     evidence_ref: str | None = None
     evidence_title: str | None = None
+    service_window: str | None = None
 
 
 class SupportTurnView(BaseModel):

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.errors import install_error_handlers
 from app.api.experience_routes import router as experience_router
+from app.api.channel_routes import router as channel_router
 from app.api.routes import router
 from app.api.support_routes import router as support_router
 from app.api.workflow_routes import router as workflow_router
@@ -40,6 +41,7 @@ app.include_router(router)
 app.include_router(workflow_router)
 app.include_router(experience_router)
 app.include_router(support_router)
+app.include_router(channel_router)
 app.include_router(knowledge_router)
 install_error_handlers(app)
 

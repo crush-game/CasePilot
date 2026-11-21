@@ -285,9 +285,11 @@ try {
     await login(page, users.knowledge)
     await visible(page.getByRole('heading', { name: '当前账号没有工单处理权限' }))
   })
+  const consumer = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'zh-CN' })
+  const support = await consumer.newPage()
+  let supportTicket
   await scenario('P11 消费者追问、离线草稿与人工回执幂等', async () => {
-    const consumer = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'zh-CN' })
-    const support = activePage = await consumer.newPage()
+    activePage = support
     support.on('pageerror', error => pageErrors.push(error.message))
     await login(support, users.consumer, '/support')
     await visible(support.getByRole('heading', { name: '售后客服' }))
@@ -318,7 +320,31 @@ try {
     await visible(support.getByRole('status').filter({ hasText: accepted.ticket_no }))
     assert.equal(await support.getByText('已转人工。可在本会话查看工单进度。', { exact: true }).count(), 1)
     assert(await support.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+    supportTicket = accepted.ticket_no
+  })
+  await scenario('P12 人工回复排队后送达 App', async () => {
+    const business = await browser.newContext({ locale: 'zh-CN' })
+    const operator = activePage = await business.newPage()
+    operator.on('pageerror', error => pageErrors.push(error.message))
+    await login(operator, users.business)
+    const ticket = fixture('support-ticket', '--ticket-no', supportTicket)
+    await operator.goto(`${origin}/tickets/${ticket.ticket_id}`)
+    await operator.getByRole('button', { name: '认领待办', exact: true }).click()
+    const reply = '请补充故障发生时间。'
+    await operator.getByLabel('给消费者的回复').fill(reply)
+    const queued = operator.waitForResponse(response => response.url().endsWith('/support-replies') && response.request().method() === 'POST')
+    await operator.getByRole('button', { name: '将回复加入发送队列' }).click()
+    const response = await queued
+    assert.equal(response.status(), 202)
+    const delivery = await response.json()
+    await visible(operator.getByText('等待发送', { exact: false }))
+    assert.equal(await support.getByText(reply, { exact: true }).count(), 0)
+    assert(fixture('delivery', '--delivery-id', delivery.id).processed)
+    await visible(operator.getByText('已送达', { exact: false }))
+    await support.reload()
+    await visible(support.getByText(reply, { exact: true }))
     activePage = page
+    await business.close()
     await consumer.close()
   })
   assert.deepEqual(pageErrors, [], '浏览器出现未捕获脚本错误')

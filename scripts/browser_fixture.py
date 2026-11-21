@@ -21,10 +21,12 @@ def main():
     os.environ["AFTERSALES_DATABASE_URL"] = raw_url
     os.environ["AFTERSALES_ALLOWED_ORIGINS"] = json.dumps(["http://127.0.0.1:15173"])
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience"])
+    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience", "support-ticket", "delivery"])
     parser.add_argument("--run-id", type=UUID)
     parser.add_argument("--actor-id", type=UUID)
     parser.add_argument("--ticket-id", type=UUID)
+    parser.add_argument("--ticket-no")
+    parser.add_argument("--delivery-id", type=UUID)
     args = parser.parse_args()
 
     from sqlalchemy.orm import Session
@@ -43,6 +45,21 @@ def main():
         if args.run_id is None:
             raise SystemExit("必须指定本次测试 run-id")
         print(json.dumps({"processed": run_once(args.run_id)}))
+    elif args.mode == "support-ticket":
+        from sqlalchemy import select
+        from app.repositories.models import Ticket
+        if not args.ticket_no or not args.ticket_no.startswith("CP-"):
+            raise SystemExit("必须指定本次测试工单号")
+        with Session(get_engine()) as db:
+            ticket = db.scalar(select(Ticket).where(Ticket.ticket_no == args.ticket_no, Ticket.source == "app_support"))
+            if ticket is None:
+                raise SystemExit("找不到测试工单")
+            print(json.dumps({"ticket_id": str(ticket.id)}))
+    elif args.mode == "delivery":
+        from app.services.deliveries import deliver_once
+        if not args.delivery_id:
+            raise SystemExit("必须指定本次测试 delivery-id")
+        print(json.dumps({"processed": deliver_once(args.delivery_id)}))
     elif args.mode == "experience":
         from app.services.experiences import process_candidate
         if not args.ticket_id:

@@ -105,8 +105,9 @@ async function logout() {
       <p v-if="loading && !current" class="muted">正在读取会话。</p>
       <div aria-live="polite" class="support-messages">
         <article v-for="turn in current?.turns" :key="turn.id">
-          <p class="support-request wrap-text">{{ turn.request_text }}</p>
+          <p v-if="turn.request_text" class="support-request wrap-text">{{ turn.request_text }}</p>
           <p class="wrap-text">{{ turn.reply_json.text }}</p>
+          <p v-if="turn.reply_json.service_window" class="muted">{{ turn.reply_json.service_window }}</p>
           <p v-if="turn.reply_json.evidence_title" class="muted small">来源：{{ turn.reply_json.evidence_title }}</p>
         </article>
       </div>

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from uuid import UUID
@@ -6,6 +7,7 @@ from sqlalchemy import select
 
 from app.api.schemas import TicketCreate
 from app.api.support_schemas import SupportAccepted, SupportReply
+from app.config import get_settings
 from app.domain.errors import AppError
 from app.domain.states import TERMINAL_STATUSES
 from app.repositories.models import SupportConversation, SupportTurn, Ticket
@@ -77,7 +79,10 @@ def reply_for(conversation, body):
         if not clarification and (not scope["product_ref"] or not scope["firmware_version"]):
             conversation.context_json = {"pending_question": redact(question), "scope": scope}
             return SupportReply(kind="clarify", text="请补充设备型号和固件版本。"), question, scope
-    return SupportReply(kind="handoff", text="已转人工。可在本会话查看工单进度。"), question, scope
+    calendar = get_settings().service_calendar
+    notice = calendar.receipt(datetime.now(timezone.utc)) if calendar else "将在人工服务时间处理，进度以工单为准。"
+    return SupportReply(kind="handoff", text="已转人工。可在本会话查看工单进度。",
+                        service_window=notice), question, scope
 
 
 def submit(db, actor, body, *, commit=True, source="app_support"):

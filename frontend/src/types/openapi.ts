@@ -376,6 +376,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/channels/mock/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mock Event */
+        post: operations["mock_event_api_v1_channels_mock_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/channels/deliveries/{delivery_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Delivery */
+        get: operations["delivery_api_v1_channels_deliveries__delivery_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tickets/{ticket_id}/support-replies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Support Replies */
+        get: operations["support_replies_api_v1_tickets__ticket_id__support_replies_get"];
+        put?: never;
+        /** Support Reply */
+        post: operations["support_reply_api_v1_tickets__ticket_id__support_replies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/documents": {
         parameters: {
             query?: never;
@@ -590,6 +642,23 @@ export interface components {
             /** Metadata */
             metadata: string;
         };
+        /** ChannelAccepted */
+        ChannelAccepted: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Disposition
+             * @enum {string}
+             */
+            disposition: "processed" | "historical" | "edited" | "closed";
+            /** Delivery Id */
+            delivery_id?: string | null;
+            /** Ticket No */
+            ticket_no?: string | null;
+        };
         /** Citation */
         Citation: {
             /** Ref */
@@ -681,6 +750,37 @@ export interface components {
             outcome: "resolved" | "unresolved";
             /** Verified Steps */
             verified_steps?: string | null;
+        };
+        /** DeliveryView */
+        DeliveryView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Channel
+             * @enum {string}
+             */
+            channel: "app" | "mock";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "delivered" | "failed";
+            /** Attempts */
+            attempts: number;
+            /** Text */
+            text: string;
+            /** Last Error */
+            last_error: string | null;
+            /** Provider Ref */
+            provider_ref: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** DocumentActionResult */
         DocumentActionResult: {
@@ -1122,6 +1222,51 @@ export interface components {
             /** Csrf Token */
             csrf_token: string;
         };
+        /** MockEvent */
+        MockEvent: {
+            /**
+             * Event Id
+             * Format: uuid
+             */
+            event_id: string;
+            /**
+             * Sender Id
+             * Format: uuid
+             */
+            sender_id: string;
+            /** Conversation Ref */
+            conversation_ref: string;
+            /** Issue Ref */
+            issue_ref: string;
+            /** Reply Target */
+            reply_target: string;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Sequence */
+            sequence: number;
+            /**
+             * Kind
+             * @default message
+             * @enum {string}
+             */
+            kind: "message" | "edit";
+            /**
+             * Action
+             * @default message
+             * @enum {string}
+             */
+            action: "message" | "handoff";
+            /** Text */
+            text: string;
+            /**
+             * Simulated Failures
+             * @default 0
+             */
+            simulated_failures: number;
+        };
         /**
          * Priority
          * @enum {string}
@@ -1420,6 +1565,18 @@ export interface components {
             ticket_status?: components["schemas"]["TicketStatus"] | null;
             turn: components["schemas"]["SupportTurnView"];
         };
+        /** SupportAgentReply */
+        SupportAgentReply: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Expected Version */
+            expected_version: number;
+            /** Text */
+            text: string;
+        };
         /** SupportConversationView */
         SupportConversationView: {
             /**
@@ -1485,13 +1642,15 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "answer" | "clarify" | "handoff" | "received" | "feedback";
+            kind: "answer" | "clarify" | "handoff" | "received" | "feedback" | "agent_reply";
             /** Text */
             text: string;
             /** Evidence Ref */
             evidence_ref?: string | null;
             /** Evidence Title */
             evidence_title?: string | null;
+            /** Service Window */
+            service_window?: string | null;
         };
         /** SupportTurnView */
         SupportTurnView: {
@@ -2495,6 +2654,136 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SupportAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mock_event_api_v1_channels_mock_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MockEvent"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delivery_api_v1_channels_deliveries__delivery_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                delivery_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_replies_api_v1_tickets__ticket_id__support_replies_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_reply_api_v1_tickets__ticket_id__support_replies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportAgentReply"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliveryView"];
                 };
             };
             /** @description Validation Error */

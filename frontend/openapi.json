@@ -1200,6 +1200,176 @@
         }
       }
     },
+    "/api/v1/channels/mock/events": {
+      "post": {
+        "summary": "Mock Event",
+        "operationId": "mock_event_api_v1_channels_mock_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MockEvent"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChannelAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/channels/deliveries/{delivery_id}": {
+      "get": {
+        "summary": "Delivery",
+        "operationId": "delivery_api_v1_channels_deliveries__delivery_id__get",
+        "parameters": [
+          {
+            "name": "delivery_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Delivery Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tickets/{ticket_id}/support-replies": {
+      "get": {
+        "summary": "Support Replies",
+        "operationId": "support_replies_api_v1_tickets__ticket_id__support_replies_get",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeliveryView"
+                  },
+                  "title": "Response Support Replies Api V1 Tickets  Ticket Id  Support Replies Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Support Reply",
+        "operationId": "support_reply_api_v1_tickets__ticket_id__support_replies_post",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportAgentReply"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliveryView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/knowledge/documents": {
       "post": {
         "tags": [
@@ -1967,6 +2137,54 @@
         ],
         "title": "Body_upload_document_api_v1_knowledge_documents_post"
       },
+      "ChannelAccepted": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "disposition": {
+            "type": "string",
+            "enum": [
+              "processed",
+              "historical",
+              "edited",
+              "closed"
+            ],
+            "title": "Disposition"
+          },
+          "delivery_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivery Id"
+          },
+          "ticket_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket No"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "disposition"
+        ],
+        "title": "ChannelAccepted"
+      },
       "Citation": {
         "properties": {
           "ref": {
@@ -2206,6 +2424,79 @@
           "outcome"
         ],
         "title": "CloseInput"
+      },
+      "DeliveryView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "channel": {
+            "type": "string",
+            "enum": [
+              "app",
+              "mock"
+            ],
+            "title": "Channel"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "delivered",
+              "failed"
+            ],
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Error"
+          },
+          "provider_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Ref"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "channel",
+          "status",
+          "attempts",
+          "text",
+          "last_error",
+          "provider_ref",
+          "created_at"
+        ],
+        "title": "DeliveryView"
       },
       "DocumentActionResult": {
         "properties": {
@@ -3335,6 +3626,93 @@
         ],
         "title": "LoginResult"
       },
+      "MockEvent": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Event Id"
+          },
+          "sender_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Sender Id"
+          },
+          "conversation_ref": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Conversation Ref"
+          },
+          "issue_ref": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Issue Ref"
+          },
+          "reply_target": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Reply Target"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At"
+          },
+          "sequence": {
+            "type": "integer",
+            "maximum": 2147483647.0,
+            "minimum": 1.0,
+            "title": "Sequence"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "message",
+              "edit"
+            ],
+            "title": "Kind",
+            "default": "message"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "message",
+              "handoff"
+            ],
+            "title": "Action",
+            "default": "message"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "simulated_failures": {
+            "type": "integer",
+            "maximum": 3.0,
+            "minimum": 0.0,
+            "title": "Simulated Failures",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "event_id",
+          "sender_id",
+          "conversation_ref",
+          "issue_ref",
+          "reply_target",
+          "occurred_at",
+          "sequence",
+          "text"
+        ],
+        "title": "MockEvent"
+      },
       "Priority": {
         "type": "string",
         "enum": [
@@ -4085,6 +4463,34 @@
         ],
         "title": "SupportAccepted"
       },
+      "SupportAgentReply": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Action Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_id",
+          "expected_version",
+          "text"
+        ],
+        "title": "SupportAgentReply"
+      },
       "SupportConversationView": {
         "properties": {
           "id": {
@@ -4254,7 +4660,8 @@
               "clarify",
               "handoff",
               "received",
-              "feedback"
+              "feedback",
+              "agent_reply"
             ],
             "title": "Kind"
           },
@@ -4283,6 +4690,17 @@
               }
             ],
             "title": "Evidence Title"
+          },
+          "service_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Window"
           }
         },
         "type": "object",

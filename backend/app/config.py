@@ -7,6 +7,7 @@ from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.providers.client import ModelProfile, Role
+from app.services.calendar import ServiceCalendar
 
 
 class Settings(BaseSettings):
@@ -23,6 +24,7 @@ class Settings(BaseSettings):
     enterprise_data_provider: Literal["mock"] = "mock"
     session_ttl_seconds: int = Field(default=28800, ge=300, le=86400)
     cookie_secure: bool = False
+    service_calendar: ServiceCalendar | None = None
     worker_lease_seconds: int = Field(default=30, ge=2, le=300)
     worker_poll_seconds: float = Field(default=1, ge=0.1, le=10)
     ingestion_lease_seconds: int = Field(default=60, ge=2, le=300)

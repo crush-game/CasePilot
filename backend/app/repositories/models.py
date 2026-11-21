@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0007_support"
+SCHEMA_VERSION = "0008_delivery"
 
 
 def choices(column, enum):
@@ -528,4 +528,49 @@ class SupportTurn(Base):
     conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"))
     request_text: Mapped[str] = mapped_column(Text)
     reply_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ChannelThread(Base):
+    __tablename__ = "channel_threads"
+    __table_args__ = (UniqueConstraint("sender_id", "external_ref", "issue_ref", name="uq_channel_threads_issue"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    sender_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    external_ref: Mapped[str] = mapped_column(String(120))
+    issue_ref: Mapped[str] = mapped_column(String(120))
+    conversation_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.support_conversations.id"), unique=True)
+    reply_target: Mapped[str] = mapped_column(String(120))
+    latest_sequence: Mapped[int] = mapped_column(Integer)
+
+
+class ChannelEvent(Base):
+    __tablename__ = "channel_events"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    thread_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.channel_threads.id"))
+    request_hash: Mapped[str] = mapped_column(String(64))
+    event_json: Mapped[dict] = mapped_column(JSONB)
+    response_json: Mapped[dict] = mapped_column(JSONB)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportDelivery(Base):
+    __tablename__ = "support_deliveries"
+    __table_args__ = (
+        CheckConstraint("status IN ('queued','delivered','failed')", name="status"),
+        CheckConstraint("channel IN ('app','mock')", name="channel"),
+        CheckConstraint("attempts BETWEEN 0 AND 3", name="attempts"),
+        Index("ix_support_deliveries_eligible", "status", "available_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"), index=True)
+    channel: Mapped[str] = mapped_column(String(12))
+    status: Mapped[str] = mapped_column(String(12), default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    payload_json: Mapped[dict] = mapped_column(JSONB)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    last_error: Mapped[str | None] = mapped_column(String(64))
+    provider_ref: Mapped[str | None] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
