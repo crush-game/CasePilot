@@ -40,7 +40,7 @@ Set-Location frontend
 npm run dev
 ```
 
-`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展、业务迁移版本和检查点表。前端工作台默认访问 `http://127.0.0.1:5173`，与 API、Worker、对账循环配合即可处理工单。模型和企业数据只能配置为 `mock`，不请求外部模型或生产业务接口。
+`GET /health/live` 只检查进程；`GET /health/ready` 检查数据库、vector 扩展、业务迁移版本和检查点表。前端工作台默认访问 `http://127.0.0.1:5173`，与 API、Worker、对账循环配合即可处理工单。默认运行固定 Mock 图和模拟业务资料。启用可选 Supervisor 图及外部模型的条件见 P06～P08。
 
 另开两个终端分别启动 Worker 和独立对账循环：
 
@@ -87,12 +87,12 @@ P01 尚无附件上传，`artifact_ids` 只接受空数组。`occurred_at` 必�
 1. 建单后启动 Worker；有完整设备/时间时直接生成待确认方案，否则持久暂停并建立人工待办。
 2. `GET /human-tasks` 查询人工池，默认返回开放待办，可用 status/assignee_id 筛选，cursor 为返回的 UUID 游标。`GET /human-tasks/{id}` 返回缺口、认领状态、当前 expected_version。
 3. `POST /human-tasks/{id}/claim` 认领，JSON 为 action_id＋expected_version；其他人已认领或版本失效返回 409。
-4. `POST /human-tasks/{id}/resume` 补充后排队恢复，只有认领人可操作。除 action_id、expected_version 外，facts_patch 支持 device_ref、occurred_at、occurred_at_precision；补充设备和时间可一次完成，也可以分两次暂停完成。替换已有关键事实请重新调查；非空 selected_feedback_ref 尚不支持。
+4. `POST /human-tasks/{id}/resume` 补充后排队恢复，只有认领人可操作。除 action_id、expected_version 外，facts_patch 支持 device_ref、occurred_at、occurred_at_precision；补充设备和时间可一次完成，也可以分两次暂停完成。替换已有关键事实请重新调查；`supervisor-v2` 的多反馈待办可以提交 `selected_feedback_ref`，见 P08。
 5. Worker 使用同一 run/thread 和 `Command(resume=...)` 继续。恢复动作已被检查点消费时不会再次提交给后续暂停点。生成方案后为 `PENDING_CONFIRMATION`，详情返回 solution_json，run 详情返回节点记录与检查点摘要。
 6. `POST /tickets/{id}/review` 用 decision=approve/revise 审核或修改 reply_draft，审核通过仍为待确认；`POST /tickets/{id}/customer-feedback` 用 outcome=contacted＋reason 记录业务人员已联系客户，此时才进入 `WAITING_CUSTOMER`。系统没有外部发送接口。
 7. `POST /tickets/{id}/close` 明确 outcome=resolved/unresolved＋reason，分别进入已解决/未解决结案，清理活动指针、开放待办和待执行任务。暂停中的工单先认领；运行中的工单先请求停止。
 
-上述写操作都携带 action_id、expected_version 和 CSRF，重复同一动作返回原结果。`customer-feedback` 的 resolved 显式调用结案规则，unresolved 创建新调查 run；均保留人工来源和原因。首版不自动生成成功经验。
+上述写操作都携带 action_id、expected_version 和 CSRF，重复同一动作返回原结果。`customer-feedback` 的 resolved 显式调用结案规则，unresolved 创建新调查 run；均保留人工来源和原因。明确确认解决后可生成待人工审阅的候选经验，见 P09。
 
 `POST /tickets/{id}/takeover` 携带 reason 请求停止并撤销旧执行权。详情先显示 cancel_requested，待 run 锁释放且 Worker 保存人工暂停后才能修改关键事实。不会在锁仍被旧执行占有时强行接管。运行停止后可用 `POST /tickets/{id}/reinvestigate`（reason＋可选 facts_patch）修正关键型号或时间，旧 run 标 superseded，新 run 使用新 thread；旧记录仍可查询。
 
@@ -284,6 +284,19 @@ P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contra
 业务人员选择已解决并填写结案说明后，系统在同一事务登记经验提取任务。可选填经过核验的有效操作，系统从结案记录和调查来源提取脱敏候选，保留确认方式、适用条件、来源工单、运行、结果版本和引用。仅有联系记录、草稿审核或未解决结案时不会登记成功经验。历史终态不自动补录。
 
 升级本地 PostgreSQL 时运行 `python -m app.manage migrate`，迁移 `0006_experiences` 新增经验表。日常运行 `python -m app.workers.runtime worker` 会同时处理工单和待提取经验。工作台「经验候选」可查看、审阅或归档，`GET /api/v1/experiences` 可按工单和状态筛选。审阅使用版本检查、幂等操作标识和审计记录。发布与检索复用安排在 P13。
+
+## P10 一期演示与验收
+
+1. 按本页启动数据库、迁移、初始化检查点，再启动 API、前端、Worker 和对账进程。
+2. 使用工单工作台新建一个公开虚构反馈，例如邮箱 `demo@example.test`、问题「设备反复断连」。先留空设备和发生时间。待状态变为「待人工处理」后认领，填设备 `DEMO-01` 与发生时间并恢复。
+3. 在详情中查看调查轨迹和来源。审核模拟草稿，记录已联系。人工确认解决时可填已核验操作，正常 Worker 会生成经验候选。也可结为未解决，验证这一路径没有成功候选。
+4. 模拟故障用 `[MOCK_ERROR]` 建单。需要实际中断恢复验证时，运行测试脚本，故障注入只针对独立测试库与测试子进程。对账与单次运行命令见 P02。
+
+```powershell
+.\.venv\Scripts\python.exe scripts/verify_p10.py
+```
+
+验收按顺序检查 Compose 配置、全量后端、12 个模拟场景、前端契约、单测、构建和浏览器工作台。各步骤退出码与日志保存在 `output/p10/`。S01～S04 另核对知识路径、日志路径和两种证据合并的持久工单。真实模型接入证据来自先前授权的 P06/P07 小集，企业反馈和日志在一期使用模拟适配器。
 
 ## 提交与阶段
 

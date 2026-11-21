@@ -24,7 +24,7 @@ def test_engine():
     url = make_url(raw_url)
     assert url.database == "aftersales_test"
     assert url.host in {"localhost", "127.0.0.1"}
-    engine = create_engine(url.set(drivername="postgresql+psycopg"))
+    engine = create_engine(url.set(drivername="postgresql+psycopg"), connect_args={"connect_timeout": 5})
     upgrade_database(engine)
     setup_checkpoints(raw_url)
     yield engine
