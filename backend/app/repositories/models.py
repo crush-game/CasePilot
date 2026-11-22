@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0010_support_intake"
+SCHEMA_VERSION = "0011_quality"
 
 
 def choices(column, enum):
@@ -579,6 +579,60 @@ class SupportDelivery(Base):
     available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_error: Mapped[str | None] = mapped_column(String(64))
     provider_ref: Mapped[str | None] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QualityRuleSet(Base):
+    __tablename__ = "quality_rule_sets"
+
+    version: Mapped[str] = mapped_column(String(24), primary_key=True)
+    config_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QualitySnapshot(Base):
+    __tablename__ = "quality_snapshots"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    ticket_id: Mapped[UUID] = mapped_column(ForeignKey("business.tickets.id"), unique=True)
+    conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"))
+    case_version: Mapped[int] = mapped_column(Integer)
+    rule_version: Mapped[str] = mapped_column(ForeignKey("business.quality_rule_sets.version"))
+    data_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QualityBatch(Base):
+    __tablename__ = "quality_batches"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    batch_key: Mapped[str] = mapped_column(String(80), unique=True)
+    ticket_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.tickets.id"))
+    random_pct: Mapped[int] = mapped_column(Integer)
+    max_calls: Mapped[int] = mapped_column(Integer)
+    calls_used: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    selection_json: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class QualityAssessment(Base):
+    __tablename__ = "quality_assessments"
+    __table_args__ = (
+        UniqueConstraint("snapshot_id", "subject_id", "rule_version", name="uq_quality_assessments_subject_rule"),
+        Index("ix_quality_assessments_status", "status", "created_at", "id"),
+        CheckConstraint("status IN ('queued','screened','ai_queued','pending_review','finalized','appealed','insufficient')",
+                        name="status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    snapshot_id: Mapped[UUID] = mapped_column(ForeignKey("business.quality_snapshots.id"))
+    subject_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    rule_version: Mapped[str] = mapped_column(ForeignKey("business.quality_rule_sets.version"))
+    batch_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.quality_batches.id"))
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    result_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    history_json: Mapped[list] = mapped_column(JSONB, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

@@ -23,7 +23,7 @@ def main():
     os.environ["AFTERSALES_DATABASE_URL"] = raw_url
     os.environ["AFTERSALES_ALLOWED_ORIGINS"] = json.dumps(["http://127.0.0.1:15173"])
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience", "support-ticket", "delivery"])
+    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience", "support-ticket", "delivery", "quality"])
     parser.add_argument("--run-id", type=UUID)
     parser.add_argument("--actor-id", type=UUID)
     parser.add_argument("--ticket-id", type=UUID)
@@ -79,6 +79,16 @@ def main():
         if not args.ticket_id:
             raise SystemExit("必须指定本次测试工单")
         print(json.dumps({"processed": process_candidate(args.ticket_id)}))
+    elif args.mode == "quality":
+        from sqlalchemy import select
+        from app.repositories.models import QualityAssessment, QualitySnapshot
+        from app.services.quality import process_one
+        if not args.ticket_id:
+            raise SystemExit("必须指定本次质检工单")
+        with Session(get_engine()) as db:
+            ids = list(db.scalars(select(QualityAssessment.id).join(QualitySnapshot)
+                                  .where(QualitySnapshot.ticket_id == args.ticket_id)))
+        print(json.dumps({"processed": sum(process_one(assessment_id=item) for item in ids)}))
     elif args.mode in {"faults", "fault-worker"}:
         # 仅浏览器验收夹具使用HTTP契约替身；业务代码不依赖tests。
         import httpx
@@ -130,7 +140,8 @@ def main():
         setup_checkpoints()
         prefix = f"e2e_{uuid4().hex[:12]}"
         users = {}
-        for key, role in (("business", Role.BUSINESS), ("knowledge", Role.KNOWLEDGE_ADMIN), ("consumer", Role.CONSUMER)):
+        for key, role in (("business", Role.BUSINESS), ("knowledge", Role.KNOWLEDGE_ADMIN),
+                          ("consumer", Role.CONSUMER), ("reviewer", Role.BUSINESS)):
             password = secrets.token_urlsafe(24)
             with Session(get_engine(), expire_on_commit=False) as db:
                 user = create_user(db, f"{prefix}_{key}", password, role)

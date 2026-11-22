@@ -288,6 +288,7 @@ try {
   const consumer = await browser.newContext({ viewport: { width: 375, height: 812 }, locale: 'zh-CN' })
   const support = await consumer.newPage()
   let supportTicket
+  let diagnosedTicket
   await scenario('P11 消费者追问、离线草稿与人工回执幂等', async () => {
     activePage = support
     support.on('pageerror', error => pageErrors.push(error.message))
@@ -396,7 +397,7 @@ try {
     customer.on('pageerror', error => pageErrors.push(error.message))
     operator.on('pageerror', error => pageErrors.push(error.message))
     try {
-      const question = 'Wi-Fi 配对后反复断开'
+      const question = 'Wi-Fi 配对后反复断开，另外想问保修。'
       await login(customer, users.consumer, '/support')
       await customer.getByLabel('问题', { exact: true }).fill(question)
       await customer.getByRole('button', { name: '发送', exact: true }).click()
@@ -413,6 +414,7 @@ try {
       assert.equal(accepted.ticket_status, 'QUEUED')
       await visible(customer.getByText('设备故障已记录，正在等待首诊。', { exact: true }))
       const ticket = fixture('support-ticket', '--ticket-no', accepted.ticket_no)
+      diagnosedTicket = ticket.ticket_id
       assert(fixture('fault-worker', '--run-id', ticket.run_id, '--wifi-only').processed)
       await login(operator, users.business)
       activePage = operator
@@ -431,10 +433,49 @@ try {
       assert(fixture('delivery', '--delivery-id', delivery.id).processed)
       await customer.reload()
       await visible(customer.getByText(reply, { exact: true }))
+      await customer.getByLabel('补充信息', { exact: true }).fill('连接问题已解决。')
+      await customer.getByRole('button', { name: '发送', exact: true }).click()
+      await visible(customer.getByText('补充信息已记录到工单。', { exact: true }))
     } finally {
       activePage = page
       await customerContext.close()
       await businessContext.close()
+    }
+  })
+  await scenario('P17 结案快照、原消息证据及独立复核', async () => {
+    const businessContext = await browser.newContext({ locale: 'zh-CN' })
+    const reviewerContext = await browser.newContext({ locale: 'zh-CN' })
+    const operator = activePage = await businessContext.newPage()
+    const reviewer = await reviewerContext.newPage()
+    try {
+      await login(operator, users.business)
+      await operator.goto(`${origin}/tickets/${diagnosedTicket}`)
+      await operator.getByRole('button', { name: '人工结案', exact: true }).click()
+      await operator.getByLabel('结案说明').fill('客户已确认连接恢复。')
+      await operator.getByLabel('已核验有效的操作（选填）').fill('重新配对后实际测试连接。')
+      await operator.getByRole('button', { name: '确认结案', exact: true }).click()
+      await waitStatus(operator, '已解决')
+      assert.equal(fixture('quality', '--ticket-id', diagnosedTicket).processed, 1)
+      await login(reviewer, users.reviewer)
+      activePage = reviewer
+      await reviewer.goto(`${origin}/quality?ticket_id=${diagnosedTicket}`)
+      await reviewer.getByRole('button', { name: '安排精检', exact: true }).click()
+      await visible(reviewer.getByRole('status').filter({ hasText: '入样 1 条' }))
+      assert.equal(fixture('quality', '--ticket-id', diagnosedTicket).processed, 1)
+      await reviewer.reload()
+      await visible(reviewer.getByText(/待复核/).first())
+      await reviewer.getByRole('button', { name: '查看质检证据', exact: true }).click()
+      const finding = reviewer.getByText('未回答客户提出的问题', { exact: false }).first()
+      await visible(finding)
+      await reviewer.getByRole('button', { name: '查看原消息', exact: true }).first().click()
+      await visible(reviewer.getByRole('status').filter({ hasText: '另外想问保修' }))
+      await reviewer.getByLabel('操作依据').fill('人工已确认只回答连接问题。')
+      await reviewer.getByRole('button', { name: '确认评分', exact: true }).click()
+      await visible(reviewer.getByText(/已确认 · 80/).first())
+    } finally {
+      activePage = page
+      await businessContext.close()
+      await reviewerContext.close()
     }
   })
   await scenario('P13 发布后按范围找回历史案例并验证撤回', async () => {

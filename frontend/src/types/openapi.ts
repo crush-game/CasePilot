@@ -668,6 +668,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/quality/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assessments */
+        get: operations["assessments_api_v1_quality_assessments_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/assessments/{assessment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assessment */
+        get: operations["assessment_api_v1_quality_assessments__assessment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/assessments/{assessment_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Decision */
+        post: operations["decision_api_v1_quality_assessments__assessment_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/batches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create Batch */
+        post: operations["create_batch_api_v1_quality_batches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rules */
+        get: operations["rules_api_v1_quality_rules_get"];
+        put?: never;
+        /** Publish Rules */
+        post: operations["publish_rules_api_v1_quality_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -1435,6 +1521,203 @@ export interface components {
             note: string;
             /** Withdrawal Note */
             withdrawal_note: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** QualityBatchInput */
+        QualityBatchInput: {
+            /** Batch Key */
+            batch_key: string;
+            /**
+             * Random Pct
+             * @default 10
+             */
+            random_pct: number;
+            /**
+             * Max Calls
+             * @default 20
+             */
+            max_calls: number;
+            /** Ticket Id */
+            ticket_id?: string | null;
+        };
+        /** QualityBatchView */
+        QualityBatchView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Batch Key */
+            batch_key: string;
+            /** Ticket Id */
+            ticket_id?: string | null;
+            /** Random Pct */
+            random_pct: number;
+            /** Max Calls */
+            max_calls: number;
+            /** Calls Used */
+            calls_used: number;
+            /** Selection Json */
+            selection_json: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** QualityDecision */
+        QualityDecision: {
+            /**
+             * Action Id
+             * Format: uuid
+             */
+            action_id: string;
+            /** Expected Version */
+            expected_version: number;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirm" | "adjust" | "appeal" | "rescore";
+            /** Reason */
+            reason: string;
+            /** Findings */
+            findings?: components["schemas"]["QualityFinding"][] | null;
+            /** Rule Version */
+            rule_version?: string | null;
+        };
+        /** QualityDetail */
+        QualityDetail: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /**
+             * Ticket Id
+             * Format: uuid
+             */
+            ticket_id: string;
+            /**
+             * Subject Id
+             * Format: uuid
+             */
+            subject_id: string;
+            /** Subject Name */
+            subject_name: string;
+            /** Rule Version */
+            rule_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "screened" | "ai_queued" | "pending_review" | "finalized" | "appealed" | "insufficient";
+            /** Version */
+            version: number;
+            /** Result Json */
+            result_json: {
+                [key: string]: unknown;
+            };
+            /** History Json */
+            history_json: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Snapshot */
+            snapshot: {
+                [key: string]: unknown;
+            };
+        };
+        /** QualityFinding */
+        QualityFinding: {
+            /**
+             * Rule Id
+             * @enum {string}
+             */
+            rule_id: "fatal_review" | "business_incomplete" | "process_late" | "format_missing" | "service_dismissive" | "operation_model";
+            /** Evidence */
+            evidence: string[];
+        };
+        /** QualityList */
+        QualityList: {
+            /** Items */
+            items: components["schemas"]["QualityView"][];
+            /** Next Cursor */
+            next_cursor: string | null;
+            /** Snapshot Missing */
+            snapshot_missing: string[];
+        };
+        /** QualityRuleSetInput */
+        QualityRuleSetInput: {
+            /** Version */
+            version: string;
+            /** Deductions */
+            deductions: {
+                [key: string]: number;
+            };
+            /** Caps */
+            caps: {
+                [key: string]: number;
+            };
+            /** Follow Up Minutes */
+            follow_up_minutes: number;
+            /**
+             * Require Greeting
+             * @default false
+             */
+            require_greeting: boolean;
+        };
+        /** QualityView */
+        QualityView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Snapshot Id
+             * Format: uuid
+             */
+            snapshot_id: string;
+            /**
+             * Ticket Id
+             * Format: uuid
+             */
+            ticket_id: string;
+            /**
+             * Subject Id
+             * Format: uuid
+             */
+            subject_id: string;
+            /** Subject Name */
+            subject_name: string;
+            /** Rule Version */
+            rule_version: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "screened" | "ai_queued" | "pending_review" | "finalized" | "appealed" | "insufficient";
+            /** Version */
+            version: number;
+            /** Result Json */
+            result_json: {
+                [key: string]: unknown;
+            };
+            /** History Json */
+            history_json: {
+                [key: string]: unknown;
+            }[];
             /**
              * Created At
              * Format: date-time
@@ -3532,6 +3815,191 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Citation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assessments_api_v1_quality_assessments_get: {
+        parameters: {
+            query?: {
+                ticket_id?: string | null;
+                cursor?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    assessment_api_v1_quality_assessments__assessment_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    decision_api_v1_quality_assessments__assessment_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualityDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_batch_api_v1_quality_batches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualityBatchInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityBatchView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rules_api_v1_quality_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityRuleSetInput"][];
+                };
+            };
+        };
+    };
+    publish_rules_api_v1_quality_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["QualityRuleSetInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QualityRuleSetInput"];
                 };
             };
             /** @description Validation Error */

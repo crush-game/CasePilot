@@ -11,6 +11,7 @@ from app.domain.errors import AppError
 from app.domain.states import TERMINAL_STATUSES
 from app.repositories.models import ExecutionTask, HumanAction, HumanTask, Run, SupportConversation, Ticket, TicketFact
 from app.services.experiences import enqueue_candidate
+from app.services.quality import freeze as freeze_quality, lock_close_conversation
 from app.services.solutions import check_draft
 from app.services.tickets import reserve_request
 from app.services.workflow_common import (
@@ -209,6 +210,7 @@ def close(db: Session, actor, ticket_id: UUID, body, *, confirmation="human_veri
         raise AppError(403, "NOT_TASK_OWNER", "此工单由其他业务人员接管")
     if any(task.status == "unclaimed" for task in tasks):
         raise AppError(409, "CLAIM_REQUIRED", "请先认领人工待办再结案")
+    conversation = lock_close_conversation(db, ticket)
     transition(ticket, TicketStatus.RESOLVED if body.outcome == "resolved" else TicketStatus.CLOSED_UNRESOLVED)
     ticket.result_json = {"outcome": body.outcome, "reason": body.reason, "source": "human",
                           "actor_id": str(actor.id), "data_source": "mock"}
@@ -224,6 +226,8 @@ def close(db: Session, actor, ticket_id: UUID, body, *, confirmation="human_veri
         ticket.result_json = {**ticket.result_json, "confirmation": confirmation, "verified_steps": body.verified_steps}
         enqueue_candidate(db, ticket, run, body.action_id)
     append_event(db, ticket, "ticket.closed", ticket.result_json)
+    if conversation is not None:
+        freeze_quality(db, ticket, conversation)
     ticket.active_run_id = None
     return finish_action(db, record, ticket, actor, body, operation)
 

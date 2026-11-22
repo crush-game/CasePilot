@@ -203,8 +203,10 @@ def main():
                 if args.mode == "worker" and args.run_id is None:
                     from app.services.deliveries import deliver_once
                     from app.services.experiences import process_candidate
+                    from app.services.quality import process_one as process_quality
                     processed = process_candidate() or processed
                     processed = deliver_once() or processed
+                    processed = process_quality() or processed
             except (psycopg.Error, SQLAlchemyError):
                 if args.once:
                     raise SystemExit("存储暂不可用，本次未完成任务处理。") from None

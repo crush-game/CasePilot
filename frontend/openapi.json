@@ -2314,6 +2314,268 @@
         }
       }
     },
+    "/api/v1/quality/assessments": {
+      "get": {
+        "summary": "Assessments",
+        "operationId": "assessments_api_v1_quality_assessments_get",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Ticket Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/assessments/{assessment_id}": {
+      "get": {
+        "summary": "Assessment",
+        "operationId": "assessment_api_v1_quality_assessments__assessment_id__get",
+        "parameters": [
+          {
+            "name": "assessment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assessment Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/assessments/{assessment_id}/decision": {
+      "post": {
+        "summary": "Decision",
+        "operationId": "decision_api_v1_quality_assessments__assessment_id__decision_post",
+        "parameters": [
+          {
+            "name": "assessment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assessment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/batches": {
+      "post": {
+        "summary": "Create Batch",
+        "operationId": "create_batch_api_v1_quality_batches_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityBatchInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityBatchView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/rules": {
+      "get": {
+        "summary": "Rules",
+        "operationId": "rules_api_v1_quality_rules_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QualityRuleSetInput"
+                  },
+                  "type": "array",
+                  "title": "Response Rules Api V1 Quality Rules Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Publish Rules",
+        "operationId": "publish_rules_api_v1_quality_rules_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QualityRuleSetInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QualityRuleSetInput"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Live",
@@ -4184,6 +4446,470 @@
           "created_at"
         ],
         "title": "PublicationView"
+      },
+      "QualityBatchInput": {
+        "properties": {
+          "batch_key": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Batch Key"
+          },
+          "random_pct": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Random Pct",
+            "default": 10
+          },
+          "max_calls": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 0.0,
+            "title": "Max Calls",
+            "default": 20
+          },
+          "ticket_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "batch_key"
+        ],
+        "title": "QualityBatchInput"
+      },
+      "QualityBatchView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "batch_key": {
+            "type": "string",
+            "title": "Batch Key"
+          },
+          "ticket_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticket Id"
+          },
+          "random_pct": {
+            "type": "integer",
+            "title": "Random Pct"
+          },
+          "max_calls": {
+            "type": "integer",
+            "title": "Max Calls"
+          },
+          "calls_used": {
+            "type": "integer",
+            "title": "Calls Used"
+          },
+          "selection_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Selection Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "batch_key",
+          "random_pct",
+          "max_calls",
+          "calls_used",
+          "selection_json"
+        ],
+        "title": "QualityBatchView"
+      },
+      "QualityDecision": {
+        "properties": {
+          "action_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Action Id"
+          },
+          "expected_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Expected Version"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "confirm",
+              "adjust",
+              "appeal",
+              "rescore"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason"
+          },
+          "findings": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/QualityFinding"
+                },
+                "type": "array",
+                "maxItems": 12
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Findings"
+          },
+          "rule_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 24
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rule Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "action_id",
+          "expected_version",
+          "decision",
+          "reason"
+        ],
+        "title": "QualityDecision"
+      },
+      "QualityDetail": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Snapshot Id"
+          },
+          "ticket_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ticket Id"
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Subject Id"
+          },
+          "subject_name": {
+            "type": "string",
+            "title": "Subject Name"
+          },
+          "rule_version": {
+            "type": "string",
+            "title": "Rule Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "screened",
+              "ai_queued",
+              "pending_review",
+              "finalized",
+              "appealed",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "result_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result Json"
+          },
+          "history_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "History Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "snapshot": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "snapshot_id",
+          "ticket_id",
+          "subject_id",
+          "subject_name",
+          "rule_version",
+          "status",
+          "version",
+          "result_json",
+          "history_json",
+          "created_at",
+          "snapshot"
+        ],
+        "title": "QualityDetail"
+      },
+      "QualityFinding": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "enum": [
+              "fatal_review",
+              "business_incomplete",
+              "process_late",
+              "format_missing",
+              "service_dismissive",
+              "operation_model"
+            ],
+            "title": "Rule Id"
+          },
+          "evidence": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Evidence"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id",
+          "evidence"
+        ],
+        "title": "QualityFinding"
+      },
+      "QualityList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/QualityView"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "snapshot_missing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Snapshot Missing"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "next_cursor",
+          "snapshot_missing"
+        ],
+        "title": "QualityList"
+      },
+      "QualityRuleSetInput": {
+        "properties": {
+          "version": {
+            "type": "string",
+            "pattern": "^v[0-9]{1,4}(\\.[0-9]{1,4}){1,2}$",
+            "title": "Version"
+          },
+          "deductions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "business_incomplete",
+                "process_late",
+                "format_missing",
+                "service_dismissive",
+                "operation_model"
+              ]
+            },
+            "type": "object",
+            "title": "Deductions"
+          },
+          "caps": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "propertyNames": {
+              "enum": [
+                "business",
+                "process",
+                "format",
+                "service",
+                "operation"
+              ]
+            },
+            "type": "object",
+            "title": "Caps"
+          },
+          "follow_up_minutes": {
+            "type": "integer",
+            "maximum": 10080.0,
+            "minimum": 1.0,
+            "title": "Follow Up Minutes"
+          },
+          "require_greeting": {
+            "type": "boolean",
+            "title": "Require Greeting",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "version",
+          "deductions",
+          "caps",
+          "follow_up_minutes"
+        ],
+        "title": "QualityRuleSetInput"
+      },
+      "QualityView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "snapshot_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Snapshot Id"
+          },
+          "ticket_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Ticket Id"
+          },
+          "subject_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Subject Id"
+          },
+          "subject_name": {
+            "type": "string",
+            "title": "Subject Name"
+          },
+          "rule_version": {
+            "type": "string",
+            "title": "Rule Version"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "screened",
+              "ai_queued",
+              "pending_review",
+              "finalized",
+              "appealed",
+              "insufficient"
+            ],
+            "title": "Status"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "result_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result Json"
+          },
+          "history_json": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "History Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "snapshot_id",
+          "ticket_id",
+          "subject_id",
+          "subject_name",
+          "rule_version",
+          "status",
+          "version",
+          "result_json",
+          "history_json",
+          "created_at"
+        ],
+        "title": "QualityView"
       },
       "ReasonAction": {
         "properties": {
