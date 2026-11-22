@@ -1609,6 +1609,46 @@
         }
       }
     },
+    "/api/v1/tickets/{ticket_id}/support-conversation": {
+      "get": {
+        "summary": "Support Conversation",
+        "operationId": "support_conversation_api_v1_tickets__ticket_id__support_conversation_get",
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/knowledge/documents": {
       "post": {
         "tags": [
@@ -5136,7 +5176,8 @@
               "message",
               "clarify",
               "handoff",
-              "solved"
+              "solved",
+              "submit_fault"
             ],
             "title": "Action",
             "default": "message"
@@ -5187,6 +5228,59 @@
               }
             ],
             "title": "Flow Version"
+          },
+          "device_ref": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Ref"
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "android",
+                  "ios"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "app_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "App Version"
+          },
+          "occurred_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Occurred At"
           }
         },
         "additionalProperties": false,
@@ -5207,7 +5301,8 @@
               "handoff",
               "received",
               "feedback",
-              "agent_reply"
+              "agent_reply",
+              "investigation_queued"
             ],
             "title": "Kind"
           },

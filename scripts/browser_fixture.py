@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 import secrets
+import sys
+from tempfile import TemporaryDirectory
 from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
@@ -27,6 +29,7 @@ def main():
     parser.add_argument("--ticket-id", type=UUID)
     parser.add_argument("--ticket-no")
     parser.add_argument("--delivery-id", type=UUID)
+    parser.add_argument("--wifi-only", action="store_true")
     args = parser.parse_args()
 
     from sqlalchemy.orm import Session
@@ -40,7 +43,18 @@ def main():
 
     if args.mode == "api":
         import uvicorn
-        uvicorn.run("app.main:app", host="127.0.0.1", port=18003, access_log=False)
+        with TemporaryDirectory(prefix="casepilot-browser-") as directory:
+            if args.actor_id:
+                sys.path.insert(0, str(root / "backend/tests/integration"))
+                from test_p08 import configuration
+                config_path = Path(directory) / "providers.json"
+                config_path.write_text(configuration().model_dump_json(), encoding="utf-8")
+                os.environ["AFTERSALES_PROVIDER_CONFIG_PATH"] = str(config_path)
+                os.environ["AFTERSALES_SUPPORT_DEMO_DEVICES"] = json.dumps({
+                    str(args.actor_id): [{"device_ref": "P08-A", "customer_email": "p08-cross@example.test",
+                        "product_ref": "PILOT-01", "firmware_version": "1.0", "platform": "android", "app_version": "2.0"}],
+                })
+            uvicorn.run("app.main:app", host="127.0.0.1", port=18003, access_log=False)
     elif args.mode == "worker":
         if args.run_id is None:
             raise SystemExit("必须指定本次测试 run-id")
@@ -54,7 +68,7 @@ def main():
             ticket = db.scalar(select(Ticket).where(Ticket.ticket_no == args.ticket_no, Ticket.source == "app_support"))
             if ticket is None:
                 raise SystemExit("找不到测试工单")
-            print(json.dumps({"ticket_id": str(ticket.id)}))
+            print(json.dumps({"ticket_id": str(ticket.id), "run_id": str(ticket.active_run_id)}))
     elif args.mode == "delivery":
         from app.services.deliveries import deliver_once
         if not args.delivery_id:
@@ -67,8 +81,6 @@ def main():
         print(json.dumps({"processed": process_candidate(args.ticket_id)}))
     elif args.mode in {"faults", "fault-worker"}:
         # 仅浏览器验收夹具使用HTTP契约替身；业务代码不依赖tests。
-        import sys
-        from tempfile import TemporaryDirectory
         import httpx
         from pydantic import SecretStr
         sys.path.insert(0, str(root / "backend/tests/integration"))
@@ -83,7 +95,8 @@ def main():
             with Session(get_engine()) as db:
                 config = ProviderConfig.model_validate(latest_snapshot(db, run_id)["agent_config"]["providers"])
             client = ProviderSession(get_engine(), create_budget(get_engine(), scope="p08-browser-contract", max_calls=20),
-                config, SecretStr("CONTRACT_TEST_KEY"), transport=httpx.MockTransport(response))
+                config, SecretStr("CONTRACT_TEST_KEY"),
+                transport=httpx.MockTransport(lambda request: response(request, "wifi" if args.wifi_only else "cross")))
             advance(run_id, client)
         if args.mode == "fault-worker":
             if not args.run_id:

@@ -73,17 +73,18 @@ class SubtaskResult(Contract):
 SCOPE_FIELDS = ("product_ref", "firmware_version", "region", "channel")
 
 
-def configuration_snapshot():
+def configuration_snapshot(graph_version=None):
     from app.config import get_settings
     from app.providers.configuration import load_provider_config
     settings = get_settings()
-    if settings.workflow_graph_version == "mock-v1":
+    graph_version = graph_version or settings.workflow_graph_version
+    if graph_version == "mock-v1":
         return {"solution_contract": "p09-v1"}
-    value = {"solution_contract": "p09-v1", "graph_version": settings.workflow_graph_version, "agent_config": {
+    value = {"solution_contract": "p09-v1", "graph_version": graph_version, "agent_config": {
         "providers": load_provider_config(settings.provider_config_path).model_dump(mode="json"),
         "policy": AgentPolicy(timeout_seconds=settings.run_timeout_seconds,
                               max_steps=settings.max_agent_steps).model_dump(mode="json"), "prompt_version": "p07-v1"}}
-    if settings.workflow_graph_version == "supervisor-v2":
+    if graph_version == "supervisor-v2":
         from app.faults.source import source_snapshot
         value["agent_config"]["enterprise"] = source_snapshot(settings.enterprise_mock_fixture)
         value["agent_config"]["policy"]["version"] = "p08-v1"

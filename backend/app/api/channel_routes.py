@@ -4,7 +4,8 @@ from fastapi import APIRouter
 
 from app.api.channel_schemas import ChannelAccepted, DeliveryView, MockEvent, SupportAgentReply
 from app.api.dependencies import BusinessUser, Database
-from app.services import channels, deliveries
+from app.api.support_schemas import SupportDetail
+from app.services import channels, deliveries, support
 
 
 router = APIRouter(prefix="/api/v1")
@@ -23,6 +24,11 @@ def delivery(delivery_id: UUID, user: BusinessUser, db: Database):
 @router.get("/tickets/{ticket_id}/support-replies", response_model=list[DeliveryView])
 def support_replies(ticket_id: UUID, user: BusinessUser, db: Database):
     return deliveries.list_replies(db, ticket_id)
+
+
+@router.get("/tickets/{ticket_id}/support-conversation", response_model=SupportDetail)
+def support_conversation(ticket_id: UUID, user: BusinessUser, db: Database):
+    return support.ticket_conversation(db, ticket_id)
 
 
 @router.post("/tickets/{ticket_id}/support-replies", response_model=DeliveryView, status_code=202)

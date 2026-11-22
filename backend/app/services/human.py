@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.domain.enums import HumanTaskStatus, RunStatus, TicketStatus
 from app.domain.errors import AppError
 from app.domain.states import TERMINAL_STATUSES
-from app.repositories.models import ExecutionTask, HumanAction, HumanTask, Run, Ticket, TicketFact
+from app.repositories.models import ExecutionTask, HumanAction, HumanTask, Run, SupportConversation, Ticket, TicketFact
 from app.services.experiences import enqueue_candidate
 from app.services.solutions import check_draft
 from app.services.tickets import reserve_request
@@ -237,12 +237,18 @@ def review(db: Session, actor, ticket_id: UUID, body):
     ticket = lock_ticket(db, ticket_id, body.expected_version)
     if ticket.status != TicketStatus.PENDING_CONFIRMATION:
         raise AppError(409, "INVALID_STATE", "当前没有待审核方案")
+    support_v2 = ticket.source == "app_support" and db.scalar(select(SupportConversation.flow_version)
+        .where(SupportConversation.ticket_id == ticket.id)) == "support-v2"
+    if support_v2 and ticket.assignee_id not in {None, actor.id}:
+        raise AppError(403, "NOT_TASK_OWNER", "此工单已由其他客服处理")
     value = {**ticket.solution_json, "reviewed": body.decision == "approve"}
     if body.reply_draft is not None:
         value["reply_draft"] = body.reply_draft
     if body.decision == "approve":
         run = db.get(Run, ticket.active_run_id)
         value = check_draft(db, ticket, run, latest_snapshot(db, run.id), value)
+        if support_v2 and ticket.assignee_id is None:
+            ticket.assignee_id = actor.id
     ticket.solution_json = value
     ticket.version += 1
     ticket.updated_at = func.now()
@@ -272,7 +278,14 @@ def reinvestigate(db: Session, actor, ticket_id: UUID, body):
     transition(ticket, TicketStatus.QUEUED)
     new_id = uuid4()
     from app.agents.contracts import configuration_snapshot
-    execution = configuration_snapshot()
+    demo_binding = ticket.source == "app_support" and any(
+        device.customer_email == ticket.customer_email and device.device_ref == ticket.device_ref
+        for device in get_settings().support_demo_devices.get(ticket.created_by, [])
+    )
+    if ticket.source == "app_support" and (old.graph_version == "supervisor-v2" or demo_binding):
+        execution = configuration_snapshot("supervisor-v2")
+    else:
+        execution = configuration_snapshot()
     run = Run(id=new_id, ticket_id=ticket.id, thread_id=str(new_id),
               graph_version=execution.get("graph_version", "mock-v1"), case_version=ticket.version)
     db.add(run)

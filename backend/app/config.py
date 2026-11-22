@@ -3,11 +3,20 @@ from pathlib import Path
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.providers.client import ModelProfile, Role
 from app.services.calendar import ServiceCalendar
+
+
+class SupportDemoDevice(BaseModel):
+    customer_email: str = Field(max_length=254, pattern=r"^[^@\s]+@[^@\s]+\.test$")
+    device_ref: str = Field(min_length=1, max_length=128)
+    product_ref: str = Field(min_length=1, max_length=120)
+    firmware_version: str = Field(min_length=1, max_length=120)
+    platform: Literal["android", "ios"]
+    app_version: str = Field(min_length=1, max_length=120)
 
 
 class Settings(BaseSettings):
@@ -17,6 +26,7 @@ class Settings(BaseSettings):
     model_provider: Literal["mock"] = "mock"
     workflow_graph_version: Literal["mock-v1", "supervisor-v1", "supervisor-v2"] = "mock-v1"
     enterprise_mock_fixture: str = Field(default="p08-demo", pattern=r"^[a-z0-9_-]{1,80}$")
+    support_demo_devices: dict[UUID, list[SupportDemoDevice]] = Field(default_factory=dict)
     model_profiles: dict[Role, ModelProfile] = Field(default_factory=dict)
     provider_api_key: SecretStr | None = None
     provider_config_path: Path | None = None

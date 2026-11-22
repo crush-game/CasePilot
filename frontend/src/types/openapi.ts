@@ -497,6 +497,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tickets/{ticket_id}/support-conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Support Conversation */
+        get: operations["support_conversation_api_v1_tickets__ticket_id__support_conversation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/knowledge/documents": {
         parameters: {
             query?: never;
@@ -1812,7 +1829,7 @@ export interface components {
              * @default message
              * @enum {string}
              */
-            action: "message" | "clarify" | "handoff" | "solved";
+            action: "message" | "clarify" | "handoff" | "solved" | "submit_fault";
             /**
              * Text
              * @default
@@ -1824,6 +1841,14 @@ export interface components {
             firmware_version?: string | null;
             /** Flow Version */
             flow_version?: ("support-v1" | "support-v2") | null;
+            /** Device Ref */
+            device_ref?: string | null;
+            /** Platform */
+            platform?: ("android" | "ios") | null;
+            /** App Version */
+            app_version?: string | null;
+            /** Occurred At */
+            occurred_at?: string | null;
         };
         /** SupportReply */
         SupportReply: {
@@ -1831,7 +1856,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "answer" | "clarify" | "handoff_offer" | "handoff" | "received" | "feedback" | "agent_reply";
+            kind: "answer" | "clarify" | "handoff_offer" | "handoff" | "received" | "feedback" | "agent_reply" | "investigation_queued";
             /** Text */
             text: string;
             /** Evidence Ref */
@@ -3140,6 +3165,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    support_conversation_api_v1_tickets__ticket_id__support_conversation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                ticket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SupportDetail"];
                 };
             };
             /** @description Validation Error */

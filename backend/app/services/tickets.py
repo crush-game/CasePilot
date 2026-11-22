@@ -47,7 +47,8 @@ def get_ticket(db: Session, ticket_id: UUID) -> Ticket:
     return ticket
 
 
-def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate, *, source="manual", handoff=False, commit=True) -> dict:
+def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate, *, source="manual", handoff=False,
+                  commit=True, execution=None) -> dict:
     payload = body.model_dump(mode="json")
     operation = "tickets.create" if source == "manual" else f"tickets.create:{source}"
     record, replay = reserve_request(db, actor.id, operation, key, payload)
@@ -69,7 +70,8 @@ def create_ticket(db: Session, actor: AppUser, key: str, body: TicketCreate, *, 
     db.add(ticket)
     db.flush()
     from app.agents.contracts import configuration_snapshot, SCOPE_FIELDS
-    execution = {} if handoff else configuration_snapshot()
+    if execution is None:
+        execution = {} if handoff else configuration_snapshot()
     run = Run(
         id=run_id, ticket_id=ticket_id, thread_id=str(run_id),
         graph_version=execution.get("graph_version", "mock-v1"), case_version=1,

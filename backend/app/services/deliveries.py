@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.api.channel_schemas import DeliveryView
 from app.domain.errors import AppError
+from app.domain.enums import TicketStatus
+from app.domain.states import TERMINAL_STATUSES
 from app.repositories.database import get_engine
 from app.repositories.models import ChannelThread, SupportConversation, SupportDelivery, SupportTurn
 from app.services.tickets import get_ticket, reserve_request
@@ -44,6 +46,11 @@ def queue_agent_reply(db, actor, ticket_id, body):
     conversation = db.scalar(select(SupportConversation).where(SupportConversation.ticket_id == ticket_id))
     if not conversation:
         raise AppError(409, "SUPPORT_CONVERSATION_REQUIRED", "此工单没有消费者会话")
+    if conversation.flow_version == "support-v2":
+        if ticket.status in TERMINAL_STATUSES:
+            raise AppError(409, "SUPPORT_THREAD_CLOSED", "此工单已结案")
+        if ticket.status == TicketStatus.PENDING_CONFIRMATION and not ticket.solution_json.get("reviewed"):
+            raise AppError(409, "SUPPORT_REVIEW_REQUIRED", "请先审核首诊证据和回复草稿")
     thread = db.scalar(select(ChannelThread).where(ChannelThread.conversation_id == conversation.id))
     row = enqueue(db, conversation.id, "mock" if thread else "app", body.text, reply_author_id=actor.id,
                   **({"reply_target": thread.reply_target} if thread else {}))

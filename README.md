@@ -332,3 +332,8 @@ P08验收报告写入Git忽略的 `output/p08/contract-summary.json` 和 `contra
 ## 提交与阶段
 
 每个 P 阶段全部验收通过后用中文提交一次；第一大阶段 P00～P10、第二大阶段 P11～P14 分别完成后 push。当前阶段未验收通过时不进入下一阶段。远程仓库固定为 `crush-game/CasePilot`，本地目录保留 `aftersales-agent`。
+## 网页报障与 Wi-Fi 首诊
+
+消费者从 `/support` 发起咨询，可在确认卡片补充设备标识、型号、平台、固件和 App 版本以及发生时间。配置中存在当前消费者的样例设备、字段齐全且属于 Wi-Fi 问题时，「提交故障」会自动排队调查。「确认转人工」直接建立人工待办。普通咨询沿用样例 FAQ。
+
+样例绑定通过 `AFTERSALES_SUPPORT_DEMO_DEVICES` 配置。JSON 顶层键为登录消费者的 UUID，值为设备数组，字段为 `device_ref`、`customer_email`、`product_ref`、`firmware_version`、`platform` 和 `app_version`。仅接受虚构的 `.test` 邮箱，设备数据来自已固定校验和的企业样例。Chrome 验收自动生成本地测试绑定，并使用 HTTP 契约替身推进首诊。正式使用模型需要先准备项目现有模型配置与预算。
