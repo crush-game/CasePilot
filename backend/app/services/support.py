@@ -30,7 +30,7 @@ def owned_conversation(db, owner_id, conversation_id, *, lock=False):
 
 def conversation_view(row, ticket):
     return {"id": row.id, "created_at": row.created_at, "ticket_no": ticket.ticket_no if ticket else None,
-            "ticket_status": ticket.status if ticket else None}
+            "ticket_status": ticket.status if ticket else None, "flow_version": row.flow_version}
 
 
 def list_conversations(db, owner_id):
@@ -67,7 +67,8 @@ def reply_for(conversation, body):
         question = context["pending_question"]
     else:
         question = body.text or context.get("pending_question") or context.get("last_question") or "用户请求人工协助"
-    scope = {key: getattr(body, key) or (context.get("scope", {}).get(key) if clarification or body.action == "handoff" else None)
+    scoped_turn = clarification or body.action == "handoff"
+    scope = {key: getattr(body, key) or (context.get("scope", {}).get(key) if scoped_turn else None)
              for key in ("product_ref", "firmware_version")}
     faq = match_faq(question) if body.action != "handoff" else None
     if faq:
@@ -79,6 +80,12 @@ def reply_for(conversation, body):
         if not clarification and (not scope["product_ref"] or not scope["firmware_version"]):
             conversation.context_json = {"pending_question": redact(question), "scope": scope}
             return SupportReply(kind="clarify", text="请补充设备型号和固件版本。"), question, scope
+    if conversation.flow_version == "support-v2" and body.action != "handoff":
+        scope = {key: redact(value) if value else None for key, value in scope.items()}
+        question = redact(question)
+        conversation.context_json = {"pending_question": question, "scope": scope}
+        offer = {"question": question, **scope, "missing_fields": [key for key, value in scope.items() if not value]}
+        return SupportReply(kind="handoff_offer", text="可以把这条问题提交给客服继续处理。", offer=offer), question, scope
     calendar = get_settings().service_calendar
     notice = calendar.receipt(datetime.now(timezone.utc)) if calendar else "将在人工服务时间处理，进度以工单为准。"
     return SupportReply(kind="handoff", text="已转人工。可在本会话查看工单进度。",
@@ -87,14 +94,18 @@ def reply_for(conversation, body):
 
 def submit(db, actor, body, *, commit=True, source="app_support"):
     payload = body.model_dump(mode="json")
+    if body.flow_version is None:
+        payload.pop("flow_version")
     record, replay = reserve_request(db, actor.id, "support.turn", str(body.action_id), payload)
     if replay:
         return record.response_ref
 
     if body.conversation_id:
         row = owned_conversation(db, actor.id, body.conversation_id, lock=True)
+        if body.flow_version and body.flow_version != row.flow_version:
+            raise AppError(409, "SUPPORT_FLOW_CONFLICT", "会话已固定处理版本，请刷新后重试")
     else:
-        row = SupportConversation(owner_id=actor.id, context_json={})
+        row = SupportConversation(owner_id=actor.id, context_json={}, flow_version=body.flow_version or "support-v1")
         db.add(row)
         db.flush()
 
@@ -120,7 +131,8 @@ def submit(db, actor, body, *, commit=True, source="app_support"):
             row.ticket_id = ticket.id
             row.context_json = {}
 
-    turn = SupportTurn(conversation_id=row.id, request_text=request_text, reply_json=reply.model_dump(mode="json"))
+    turn = SupportTurn(conversation_id=row.id, request_text=request_text, request_action=body.action,
+                       reply_json=reply.model_dump(mode="json"))
     db.add(turn)
     db.flush()
     response = SupportAccepted(**conversation_view(row, ticket), turn=turn).model_dump(mode="json")

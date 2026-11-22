@@ -15,7 +15,7 @@ type Accepted = components['schemas']['SupportAccepted']
 const session = useSession()
 const router = useRouter()
 const storageKey = `casepilot.support.${session.user?.id}`
-function restoreDraft(): { active?: string; text?: string; product?: string; firmware?: string; pending?: Message } {
+function restoreDraft(): { active?: string; text?: string; product?: string; firmware?: string; offeredTurn?: number; pending?: Message } {
   try { return JSON.parse(sessionStorage.getItem(storageKey) ?? '{}') ?? {} }
   catch { return {} }
 }
@@ -24,14 +24,16 @@ const active = ref(stored.active || '')
 const text = ref(stored.text || '')
 const product = ref(stored.product || '')
 const firmware = ref(stored.firmware || '')
+const offeredTurn = ref(stored.offeredTurn)
 const pending = ref<Message | null>(stored.pending || null)
 const history = ref<Conversation[]>([])
 const current = ref<Detail | null>(null)
 const sending = ref(false)
 const actionError = ref('')
-watch([active, text, product, firmware, pending], () => {
+watch([active, text, product, firmware, offeredTurn, pending], () => {
   sessionStorage.setItem(storageKey, JSON.stringify({
-    active: active.value, text: text.value, product: product.value, firmware: firmware.value, pending: pending.value,
+    active: active.value, text: text.value, product: product.value, firmware: firmware.value,
+    offeredTurn: offeredTurn.value, pending: pending.value,
   }))
 }, { flush: 'sync' })
 const { loading, error, offline, refresh } = usePolling(async signal => {
@@ -42,12 +44,23 @@ const { loading, error, offline, refresh } = usePolling(async signal => {
   ])
   if (!signal.aborted && selected === active.value) { history.value = rows; current.value = detail }
 })
-const lastReply = computed(() => current.value?.turns.at(-1)?.reply_json.kind)
+const lastTurn = computed(() => current.value?.turns.at(-1))
+const lastReply = computed(() => lastTurn.value?.reply_json.kind)
+const offer = computed(() => lastTurn.value?.reply_json.offer)
 const closed = computed(() => ['RESOLVED', 'CLOSED_UNRESOLVED'].includes(current.value?.ticket_status ?? ''))
+watch(lastTurn, turn => {
+  const proposal = turn?.reply_json.offer
+  if (!turn || !proposal || offeredTurn.value === turn.id || pending.value) return
+  offeredTurn.value = turn.id
+  text.value = proposal.question
+  product.value = proposal.product_ref ?? ''
+  firmware.value = proposal.firmware_version ?? ''
+})
 async function selectConversation(id: string) {
   active.value = id
   current.value = null
   text.value = product.value = firmware.value = actionError.value = ''
+  offeredTurn.value = undefined
   await refresh()
 }
 async function submit(action: NonNullable<Message['action']> = 'message') {
@@ -58,7 +71,8 @@ async function submit(action: NonNullable<Message['action']> = 'message') {
       actionError.value = '请填写设备型号和固件版本，或转人工。'; return
     }
     pending.value = { action_id: crypto.randomUUID(), action, conversation_id: active.value || null,
-      text: text.value.trim(), product_ref: product.value.trim() || null, firmware_version: firmware.value.trim() || null }
+      text: text.value.trim(), product_ref: product.value.trim() || null, firmware_version: firmware.value.trim() || null,
+      ...(!active.value && { flow_version: 'support-v2' }) }
   }
   sending.value = true
   actionError.value = ''
@@ -112,8 +126,17 @@ async function logout() {
         </article>
       </div>
       <p v-if="closed" class="muted">此工单已结案。如需继续，请开启新会话。</p>
-      <form v-else @submit.prevent="submit(lastReply === 'clarify' ? 'clarify' : 'message')">
-        <div v-if="lastReply === 'clarify'" class="support-scope">
+      <form v-else @submit.prevent="submit(lastReply === 'clarify' ? 'clarify' : offer ? 'handoff' : 'message')">
+        <div v-if="offer" class="support-offer">
+          <h2>确认后转人工</h2>
+          <div class="field"><label for="support-confirmation">确认的问题描述</label>
+            <el-input id="support-confirmation" v-model="text" type="textarea" :rows="3"
+              :maxlength="2000" :disabled="!!pending" /></div>
+          <p v-if="offer.missing_fields.length" class="muted small">
+            可补充{{ offer.missing_fields.map(field => field === 'product_ref' ? '设备型号' : '固件版本').join('、') }}。
+          </p>
+        </div>
+        <div v-if="lastReply === 'clarify' || offer" class="support-scope">
           <div class="field"><label for="support-product">设备型号</label>
             <el-input id="support-product" v-model="product" :maxlength="120" :disabled="!!pending" /></div>
           <div class="field"><label for="support-firmware">固件版本</label>
@@ -123,9 +146,9 @@ async function logout() {
           <el-input id="support-question" v-model="text" type="textarea" :rows="3" :maxlength="2000" :disabled="!!pending" /></div>
         <div class="action-buttons">
           <el-button type="primary" native-type="submit" :loading="sending" :disabled="offline">
-            {{ pending ? '重试提交' : lastReply === 'clarify' ? '提交设备信息' : '发送' }}
+            {{ pending ? '重试提交' : lastReply === 'clarify' ? '提交设备信息' : offer ? '确认转人工' : '发送' }}
           </el-button>
-          <el-button v-if="!current?.ticket_no" :disabled="offline || sending || !!pending" @click="submit('handoff')">转人工</el-button>
+          <el-button v-if="!current?.ticket_no && !offer" :disabled="offline || sending || !!pending" @click="submit('handoff')">转人工</el-button>
           <el-button v-if="lastReply === 'answer'" :disabled="offline || sending || !!pending" @click="submit('solved')">已解决</el-button>
         </div>
         <p v-if="offline" class="muted">离线期间输入保留在当前标签页，联网后可以提交。</p>

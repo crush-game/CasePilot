@@ -1127,6 +1127,17 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HandoffOffer */
+        HandoffOffer: {
+            /** Question */
+            question: string;
+            /** Product Ref */
+            product_ref?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Missing Fields */
+            missing_fields: ("product_ref" | "firmware_version")[];
+        };
         /** HumanTaskList */
         HumanTaskList: {
             /** Items */
@@ -1721,6 +1732,12 @@ export interface components {
             /** Ticket No */
             ticket_no?: string | null;
             ticket_status?: components["schemas"]["TicketStatus"] | null;
+            /**
+             * Flow Version
+             * @default support-v1
+             * @enum {string}
+             */
+            flow_version: "support-v1" | "support-v2";
             turn: components["schemas"]["SupportTurnView"];
         };
         /** SupportAgentReply */
@@ -1750,6 +1767,12 @@ export interface components {
             /** Ticket No */
             ticket_no?: string | null;
             ticket_status?: components["schemas"]["TicketStatus"] | null;
+            /**
+             * Flow Version
+             * @default support-v1
+             * @enum {string}
+             */
+            flow_version: "support-v1" | "support-v2";
         };
         /** SupportDetail */
         SupportDetail: {
@@ -1766,6 +1789,12 @@ export interface components {
             /** Ticket No */
             ticket_no?: string | null;
             ticket_status?: components["schemas"]["TicketStatus"] | null;
+            /**
+             * Flow Version
+             * @default support-v1
+             * @enum {string}
+             */
+            flow_version: "support-v1" | "support-v2";
             /** Turns */
             turns: components["schemas"]["SupportTurnView"][];
         };
@@ -1793,6 +1822,8 @@ export interface components {
             product_ref?: string | null;
             /** Firmware Version */
             firmware_version?: string | null;
+            /** Flow Version */
+            flow_version?: ("support-v1" | "support-v2") | null;
         };
         /** SupportReply */
         SupportReply: {
@@ -1800,7 +1831,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "answer" | "clarify" | "handoff" | "received" | "feedback" | "agent_reply";
+            kind: "answer" | "clarify" | "handoff_offer" | "handoff" | "received" | "feedback" | "agent_reply";
             /** Text */
             text: string;
             /** Evidence Ref */
@@ -1809,6 +1840,7 @@ export interface components {
             evidence_title?: string | null;
             /** Service Window */
             service_window?: string | null;
+            offer?: components["schemas"]["HandoffOffer"] | null;
         };
         /** SupportTurnView */
         SupportTurnView: {

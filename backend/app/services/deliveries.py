@@ -12,8 +12,8 @@ from app.services.workflow_common import append_event, audit_action, lock_ticket
 from app.tools.redaction import redact
 
 
-def enqueue(db, conversation_id, channel, text, **metadata):
-    row = SupportDelivery(conversation_id=conversation_id, channel=channel,
+def enqueue(db, conversation_id, channel, text, *, reply_author_id=None, **metadata):
+    row = SupportDelivery(conversation_id=conversation_id, channel=channel, reply_author_id=reply_author_id,
                           payload_json={"text": redact(text), **metadata})
     db.add(row)
     db.flush()
@@ -45,7 +45,7 @@ def queue_agent_reply(db, actor, ticket_id, body):
     if not conversation:
         raise AppError(409, "SUPPORT_CONVERSATION_REQUIRED", "此工单没有消费者会话")
     thread = db.scalar(select(ChannelThread).where(ChannelThread.conversation_id == conversation.id))
-    row = enqueue(db, conversation.id, "mock" if thread else "app", body.text,
+    row = enqueue(db, conversation.id, "mock" if thread else "app", body.text, reply_author_id=actor.id,
                   **({"reply_target": thread.reply_target} if thread else {}))
     result = view(row).model_dump(mode="json")
     append_event(db, ticket, "support.reply_queued", {"delivery_id": str(row.id)})

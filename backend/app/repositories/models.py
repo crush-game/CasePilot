@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0009_releases"
+SCHEMA_VERSION = "0010_support_intake"
 
 
 def choices(column, enum):
@@ -511,11 +511,15 @@ class Experience(Base):
 
 class SupportConversation(Base):
     __tablename__ = "support_conversations"
-    __table_args__ = (Index("ix_support_conversations_owner_created", "owner_id", "created_at", "id"),)
+    __table_args__ = (
+        Index("ix_support_conversations_owner_created", "owner_id", "created_at", "id"),
+        CheckConstraint("flow_version IN ('support-v1','support-v2')", name="flow_version"),
+    )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     owner_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
     ticket_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.tickets.id"), unique=True)
+    flow_version: Mapped[str] = mapped_column(String(16), server_default="support-v1")
     context_json: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -527,6 +531,7 @@ class SupportTurn(Base):
     id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"))
     request_text: Mapped[str] = mapped_column(Text)
+    request_action: Mapped[str | None] = mapped_column(String(24))
     reply_json: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -566,6 +571,7 @@ class SupportDelivery(Base):
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     conversation_id: Mapped[UUID] = mapped_column(ForeignKey("business.support_conversations.id"), index=True)
+    reply_author_id: Mapped[UUID | None] = mapped_column(ForeignKey("business.app_users.id"))
     channel: Mapped[str] = mapped_column(String(12))
     status: Mapped[str] = mapped_column(String(12), default="queued")
     attempts: Mapped[int] = mapped_column(Integer, default=0)

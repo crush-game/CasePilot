@@ -3468,6 +3468,53 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HandoffOffer": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "product_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product Ref"
+          },
+          "firmware_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Firmware Version"
+          },
+          "missing_fields": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "product_ref",
+                "firmware_version"
+              ]
+            },
+            "type": "array",
+            "title": "Missing Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "missing_fields"
+        ],
+        "title": "HandoffOffer"
+      },
       "HumanTaskList": {
         "properties": {
           "items": {
@@ -4907,6 +4954,15 @@
               }
             ]
           },
+          "flow_version": {
+            "type": "string",
+            "enum": [
+              "support-v1",
+              "support-v2"
+            ],
+            "title": "Flow Version",
+            "default": "support-v1"
+          },
           "turn": {
             "$ref": "#/components/schemas/SupportTurnView"
           }
@@ -4979,6 +5035,15 @@
                 "type": "null"
               }
             ]
+          },
+          "flow_version": {
+            "type": "string",
+            "enum": [
+              "support-v1",
+              "support-v2"
+            ],
+            "title": "Flow Version",
+            "default": "support-v1"
           }
         },
         "type": "object",
@@ -5020,6 +5085,15 @@
                 "type": "null"
               }
             ]
+          },
+          "flow_version": {
+            "type": "string",
+            "enum": [
+              "support-v1",
+              "support-v2"
+            ],
+            "title": "Flow Version",
+            "default": "support-v1"
           },
           "turns": {
             "items": {
@@ -5098,6 +5172,21 @@
               }
             ],
             "title": "Firmware Version"
+          },
+          "flow_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "support-v1",
+                  "support-v2"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Version"
           }
         },
         "additionalProperties": false,
@@ -5114,6 +5203,7 @@
             "enum": [
               "answer",
               "clarify",
+              "handoff_offer",
               "handoff",
               "received",
               "feedback",
@@ -5157,6 +5247,16 @@
               }
             ],
             "title": "Service Window"
+          },
+          "offer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandoffOffer"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",

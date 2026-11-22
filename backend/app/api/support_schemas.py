@@ -8,6 +8,9 @@ from app.api.schemas import InputModel
 from app.domain.enums import TicketStatus
 
 
+SupportFlow = Literal["support-v1", "support-v2"]
+
+
 class SupportMessage(InputModel):
     action_id: UUID
     conversation_id: UUID | None = None
@@ -15,6 +18,7 @@ class SupportMessage(InputModel):
     text: str = Field(default="", max_length=2000)
     product_ref: str | None = Field(default=None, min_length=1, max_length=120)
     firmware_version: str | None = Field(default=None, min_length=1, max_length=120)
+    flow_version: SupportFlow | None = None
 
     @model_validator(mode="after")
     def valid_action(self):
@@ -25,12 +29,20 @@ class SupportMessage(InputModel):
         return self
 
 
+class HandoffOffer(BaseModel):
+    question: str
+    product_ref: str | None = None
+    firmware_version: str | None = None
+    missing_fields: list[Literal["product_ref", "firmware_version"]]
+
+
 class SupportReply(BaseModel):
-    kind: Literal["answer", "clarify", "handoff", "received", "feedback", "agent_reply"]
+    kind: Literal["answer", "clarify", "handoff_offer", "handoff", "received", "feedback", "agent_reply"]
     text: str
     evidence_ref: str | None = None
     evidence_title: str | None = None
     service_window: str | None = None
+    offer: HandoffOffer | None = None
 
 
 class SupportTurnView(BaseModel):
@@ -46,6 +58,7 @@ class SupportConversationView(BaseModel):
     created_at: datetime
     ticket_no: str | None = None
     ticket_status: TicketStatus | None = None
+    flow_version: SupportFlow = "support-v1"
 
 
 class SupportDetail(SupportConversationView):
