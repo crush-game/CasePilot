@@ -204,9 +204,12 @@ def main():
                     from app.services.deliveries import deliver_once
                     from app.services.experiences import process_candidate
                     from app.services.quality import process_one as process_quality
+                    from app.services.weekly_reports import deliver_once as deliver_report, schedule_once as schedule_report
                     processed = process_candidate() or processed
                     processed = deliver_once() or processed
                     processed = process_quality() or processed
+                    processed = schedule_report() or processed
+                    processed = deliver_report() or processed
             except (psycopg.Error, SQLAlchemyError):
                 if args.once:
                     raise SystemExit("存储暂不可用，本次未完成任务处理。") from None

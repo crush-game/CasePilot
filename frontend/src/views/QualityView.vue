@@ -27,6 +27,8 @@ const ruleVersions = ref<RuleVersion[]>([])
 const included = ref<string[]>([])
 const evidenceId = ref('')
 const reason = ref('')
+const gapStatement = ref('')
+const gapNotice = ref('')
 const newVersion = ref('')
 const busy = ref(false)
 const actionError = ref('')
@@ -55,6 +57,8 @@ function show(row: Detail) {
   included.value = ((row.result_json.findings ?? []) as Finding[]).map(item => item.rule_id)
   evidenceId.value = ''
   newVersion.value = ''
+  gapStatement.value = ''
+  gapNotice.value = ''
 }
 
 async function open(id: string) {
@@ -100,6 +104,20 @@ async function decide(decision: Decision['decision']) {
   } catch (failure) { actionError.value = errorMessage(failure) }
   finally { busy.value = false }
 }
+
+async function submitGap(ruleId: Finding['rule_id']) {
+  if (!detail.value || busy.value || !gapStatement.value.trim()) return
+  actionError.value = ''
+  busy.value = true
+  try {
+    await request(`/quality/assessments/${detail.value.id}/knowledge-gap`, {
+      method: 'POST', body: JSON.stringify({ rule_id: ruleId, statement: gapStatement.value.trim() }),
+    })
+    gapNotice.value = '知识缺口已提交，等待知识管理员核对。'
+    gapStatement.value = ''
+  } catch (failure) { actionError.value = errorMessage(failure) }
+  finally { busy.value = false }
+}
 </script>
 
 <template>
@@ -134,6 +152,10 @@ async function decide(decision: Decision['decision']) {
     <p v-if="missing.length" class="notice warning">{{ missing.join('、') }}</p>
     <router-link :to="`/tickets/${detail.ticket_id}`">打开来源工单</router-link>
     <p v-if="!findings.length" class="muted">当前没有扣分项。</p>
+    <div v-if="!mine && detail.status === 'finalized' && findings.length" class="field"><label for="gap-statement">知识缺口说明</label>
+      <el-input id="gap-statement" v-model="gapStatement" :maxlength="1000" />
+    </div>
+    <p v-if="gapNotice" class="notice success" role="status">{{ gapNotice }}</p>
     <div v-for="item in findings" :key="item.rule_id" class="quality-row">
       <label>
         <input v-if="reviewable" v-model="included" type="checkbox" :value="item.rule_id" />
@@ -142,6 +164,8 @@ async function decide(decision: Decision['decision']) {
       <el-button v-for="id in item.evidence" :key="id" text @click="evidenceId = id">
         {{ id.startsWith('fact:') ? '查看字段' : '查看原消息' }}
       </el-button>
+      <el-button v-if="!mine && detail.status === 'finalized'" text :disabled="busy || !gapStatement.trim()"
+        @click="submitGap(item.rule_id)">提交知识缺口</el-button>
     </div>
     <div v-if="evidence" class="notice subtle" role="status">
       <p>{{ roles[evidence.role] }} · {{ displayTime(evidence.at) }}</p><p class="wrap-text">{{ evidence.text }}</p>

@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+import re
 from typing import Literal
 from uuid import UUID
 
@@ -27,6 +28,10 @@ class Settings(BaseSettings):
     workflow_graph_version: Literal["mock-v1", "supervisor-v1", "supervisor-v2"] = "mock-v1"
     enterprise_mock_fixture: str = Field(default="p08-demo", pattern=r"^[a-z0-9_-]{1,80}$")
     support_demo_devices: dict[UUID, list[SupportDemoDevice]] = Field(default_factory=dict)
+    weekly_report_enabled: bool = False
+    weekly_report_group: str = Field(default="after-sales", pattern=r"^[a-zA-Z0-9_-]{1,64}$")
+    weekly_report_webhook: SecretStr | None = None
+    weekly_report_origin: str = "http://127.0.0.1:5173"
     model_profiles: dict[Role, ModelProfile] = Field(default_factory=dict)
     provider_api_key: SecretStr | None = None
     provider_config_path: Path | None = None
@@ -53,6 +58,21 @@ class Settings(BaseSettings):
         if any("*" in value or not value.startswith(("http://", "https://")) for value in values):
             raise ValueError("只允许显式配置 HTTP/HTTPS 来源")
         return values
+
+    @field_validator("weekly_report_webhook")
+    @classmethod
+    def feishu_webhook(cls, value):
+        if value and not re.fullmatch(r"https://open\.feishu\.cn/open-apis/bot/v2/hook/[A-Za-z0-9_-]{16,100}",
+                                      value.get_secret_value()):
+            raise ValueError("周报 Webhook 必须是飞书群机器人地址")
+        return value
+
+    @field_validator("weekly_report_origin")
+    @classmethod
+    def report_origin(cls, value):
+        if not re.fullmatch(r"https?://[a-zA-Z0-9.-]+(?::[0-9]+)?/?", value):
+            raise ValueError("周报面板地址须为明确的 HTTP/HTTPS 站点")
+        return value.rstrip("/")
 
 
 @lru_cache

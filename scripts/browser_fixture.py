@@ -23,7 +23,8 @@ def main():
     os.environ["AFTERSALES_DATABASE_URL"] = raw_url
     os.environ["AFTERSALES_ALLOWED_ORIGINS"] = json.dumps(["http://127.0.0.1:15173"])
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience", "support-ticket", "delivery", "quality"])
+    parser.add_argument("mode", choices=["prepare", "api", "worker", "faults", "fault-worker", "experience",
+                                        "support-ticket", "delivery", "quality", "weekly-delivery"])
     parser.add_argument("--run-id", type=UUID)
     parser.add_argument("--actor-id", type=UUID)
     parser.add_argument("--ticket-id", type=UUID)
@@ -73,6 +74,12 @@ def main():
         from app.services.deliveries import deliver_once
         if not args.delivery_id:
             raise SystemExit("必须指定本次测试 delivery-id")
+        print(json.dumps({"processed": deliver_once(args.delivery_id)}))
+    elif args.mode == "weekly-delivery":
+        from app.services.weekly_reports import deliver_once
+        if not args.delivery_id:
+            raise SystemExit("必须指定本次周报投递")
+        os.environ.pop("AFTERSALES_WEEKLY_REPORT_WEBHOOK", None)
         print(json.dumps({"processed": deliver_once(args.delivery_id)}))
     elif args.mode == "experience":
         from app.services.experiences import process_candidate

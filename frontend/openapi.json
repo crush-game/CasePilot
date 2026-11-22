@@ -2576,6 +2576,314 @@
         }
       }
     },
+    "/api/v1/reports/weekly": {
+      "get": {
+        "summary": "List Reports",
+        "operationId": "list_reports_api_v1_reports_weekly_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WeeklyReportView"
+                  },
+                  "title": "Response List Reports Api V1 Reports Weekly Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Generate",
+        "operationId": "generate_api_v1_reports_weekly_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyReportView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/weekly/{report_id}": {
+      "get": {
+        "summary": "Detail",
+        "operationId": "detail_api_v1_reports_weekly__report_id__get",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyReportView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/reports/weekly/{report_id}/delivery": {
+      "post": {
+        "summary": "Enqueue",
+        "operationId": "enqueue_api_v1_reports_weekly__report_id__delivery_post",
+        "parameters": [
+          {
+            "name": "report_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeeklyDeliveryView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/quality/assessments/{assessment_id}/knowledge-gap": {
+      "post": {
+        "summary": "Submit Gap",
+        "operationId": "submit_gap_api_v1_quality_assessments__assessment_id__knowledge_gap_post",
+        "parameters": [
+          {
+            "name": "assessment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Assessment Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeGapInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeGapView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge-gaps": {
+      "get": {
+        "summary": "List Gaps",
+        "operationId": "list_gaps_api_v1_knowledge_gaps_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/KnowledgeGapView"
+                  },
+                  "title": "Response List Gaps Api V1 Knowledge Gaps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/knowledge-gaps/{gap_id}/decision": {
+      "post": {
+        "summary": "Resolve Gap",
+        "operationId": "resolve_gap_api_v1_knowledge_gaps__gap_id__decision_post",
+        "parameters": [
+          {
+            "name": "gap_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Gap Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KnowledgeGapDecision"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KnowledgeGapView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health/live": {
       "get": {
         "summary": "Live",
@@ -2965,6 +3273,37 @@
           "outcome"
         ],
         "title": "CloseInput"
+      },
+      "DeductionCount": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "enum": [
+              "fatal_review",
+              "business_incomplete",
+              "process_late",
+              "format_missing",
+              "service_dismissive",
+              "operation_model"
+            ],
+            "title": "Rule Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rule_id",
+          "label",
+          "count"
+        ],
+        "title": "DeductionCount"
       },
       "DeliveryView": {
         "properties": {
@@ -3719,6 +4058,24 @@
         "type": "object",
         "title": "FactsPatch"
       },
+      "FaultCounts": {
+        "properties": {
+          "wifi": {
+            "type": "integer",
+            "title": "Wifi"
+          },
+          "other": {
+            "type": "integer",
+            "title": "Other"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wifi",
+          "other"
+        ],
+        "title": "FaultCounts"
+      },
       "FeedbackInput": {
         "properties": {
           "action_id": {
@@ -4126,6 +4483,115 @@
         ],
         "title": "KnowledgeAction"
       },
+      "KnowledgeGapDecision": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "confirmed",
+              "dismissed"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision",
+          "reason"
+        ],
+        "title": "KnowledgeGapDecision"
+      },
+      "KnowledgeGapInput": {
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "enum": [
+              "fatal_review",
+              "business_incomplete",
+              "process_late",
+              "format_missing",
+              "service_dismissive",
+              "operation_model"
+            ],
+            "title": "Rule Id"
+          },
+          "statement": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Statement"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "rule_id",
+          "statement"
+        ],
+        "title": "KnowledgeGapInput"
+      },
+      "KnowledgeGapView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "assessment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Assessment Id"
+          },
+          "rule_id": {
+            "type": "string",
+            "enum": [
+              "fatal_review",
+              "business_incomplete",
+              "process_late",
+              "format_missing",
+              "service_dismissive",
+              "operation_model"
+            ],
+            "title": "Rule Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "dismissed"
+            ],
+            "title": "Status"
+          },
+          "evidence_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evidence Json"
+          },
+          "resolution_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resolution Json"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "assessment_id",
+          "rule_id",
+          "status",
+          "evidence_json",
+          "resolution_json"
+        ],
+        "title": "KnowledgeGapView"
+      },
       "LogEvidenceView": {
         "properties": {
           "ref": {
@@ -4262,6 +4728,24 @@
           "csrf_token"
         ],
         "title": "LoginResult"
+      },
+      "MetricRatio": {
+        "properties": {
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "count",
+          "total"
+        ],
+        "title": "MetricRatio"
       },
       "MockEvent": {
         "properties": {
@@ -4544,6 +5028,39 @@
           "selection_json"
         ],
         "title": "QualityBatchView"
+      },
+      "QualityCoverage": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "insufficient": {
+            "type": "integer",
+            "title": "Insufficient"
+          },
+          "screened": {
+            "type": "integer",
+            "title": "Screened"
+          },
+          "ai_checked": {
+            "type": "integer",
+            "title": "Ai Checked"
+          },
+          "reviewed": {
+            "type": "integer",
+            "title": "Reviewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "insufficient",
+          "screened",
+          "ai_checked",
+          "reviewed"
+        ],
+        "title": "QualityCoverage"
       },
       "QualityDecision": {
         "properties": {
@@ -5050,6 +5567,25 @@
           "reason"
         ],
         "title": "ReinvestigateInput"
+      },
+      "ReportRequest": {
+        "properties": {
+          "week_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Week Start"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportRequest"
       },
       "ResumeInput": {
         "properties": {
@@ -6816,6 +7352,164 @@
           "expected_version"
         ],
         "title": "VersionedAction"
+      },
+      "WeeklyDeliveryView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "report_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report Id"
+          },
+          "group_key": {
+            "type": "string",
+            "title": "Group Key"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "mock",
+              "feishu"
+            ],
+            "title": "Mode"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "sending",
+              "sent",
+              "failed",
+              "unknown"
+            ],
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "receipt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Receipt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "report_id",
+          "group_key",
+          "mode",
+          "status",
+          "attempts",
+          "receipt"
+        ],
+        "title": "WeeklyDeliveryView"
+      },
+      "WeeklyMetrics": {
+        "properties": {
+          "conversations": {
+            "type": "integer",
+            "title": "Conversations"
+          },
+          "self_resolved": {
+            "$ref": "#/components/schemas/MetricRatio"
+          },
+          "handoff": {
+            "$ref": "#/components/schemas/MetricRatio"
+          },
+          "new_tickets": {
+            "type": "integer",
+            "title": "New Tickets"
+          },
+          "pending_human_at_cutoff": {
+            "type": "integer",
+            "title": "Pending Human At Cutoff"
+          },
+          "faults": {
+            "$ref": "#/components/schemas/FaultCounts"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/QualityCoverage"
+          },
+          "deductions": {
+            "items": {
+              "$ref": "#/components/schemas/DeductionCount"
+            },
+            "type": "array",
+            "title": "Deductions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conversations",
+          "self_resolved",
+          "handoff",
+          "new_tickets",
+          "pending_human_at_cutoff",
+          "faults",
+          "quality",
+          "deductions"
+        ],
+        "title": "WeeklyMetrics"
+      },
+      "WeeklyReportView": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Week Start"
+          },
+          "revision": {
+            "type": "integer",
+            "title": "Revision"
+          },
+          "definition_version": {
+            "type": "string",
+            "title": "Definition Version"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "metrics_json": {
+            "$ref": "#/components/schemas/WeeklyMetrics"
+          },
+          "deliveries": {
+            "items": {
+              "$ref": "#/components/schemas/WeeklyDeliveryView"
+            },
+            "type": "array",
+            "title": "Deliveries"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "week_start",
+          "revision",
+          "definition_version",
+          "observed_at",
+          "metrics_json",
+          "deliveries"
+        ],
+        "title": "WeeklyReportView"
       }
     }
   }

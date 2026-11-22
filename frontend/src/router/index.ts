@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useSession } from '../stores/session'
 
 export function safeRedirect(value: unknown): string {
-  return typeof value === 'string' && /^\/(tickets(?:\/[a-zA-Z0-9-]+)?|human-tasks|experiences|support|quality)(?:\?.*)?$/.test(value) ? value : '/tickets'
+  return typeof value === 'string' && /^\/(tickets(?:\/[a-zA-Z0-9-]+)?|human-tasks|experiences|support|quality|reports)(?:\?.*)?$/.test(value) ? value : '/tickets'
 }
 
 export const router = createRouter({
@@ -17,6 +17,7 @@ export const router = createRouter({
     { path: '/support', component: () => import('../views/SupportView.vue') },
     { path: '/experiences', component: () => import('../views/ExperiencesView.vue') },
     { path: '/quality', component: () => import('../views/QualityView.vue') },
+    { path: '/reports', component: () => import('../views/ReportsView.vue') },
     { path: '/:pathMatch(.*)*', redirect: '/tickets' },
   ],
   scrollBehavior: () => ({ top: 0 }),

@@ -1,9 +1,9 @@
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    BigInteger, Boolean, CheckConstraint, DateTime, ForeignKey, ForeignKeyConstraint,
+    BigInteger, Boolean, CheckConstraint, Date, DateTime, ForeignKey, ForeignKeyConstraint,
     Identity, Index, Integer, LargeBinary, MetaData, Numeric, String, Text, UniqueConstraint, func, text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -14,7 +14,7 @@ from app.domain.enums import HumanTaskStatus, Priority, Role, RunStatus, TaskSta
 
 
 SCHEMA = "business"
-SCHEMA_VERSION = "0011_quality"
+SCHEMA_VERSION = "0012_weekly_reports"
 
 
 def choices(column, enum):
@@ -633,6 +633,56 @@ class QualityAssessment(Base):
     version: Mapped[int] = mapped_column(Integer, default=1)
     result_json: Mapped[dict] = mapped_column(JSONB, default=dict)
     history_json: Mapped[list] = mapped_column(JSONB, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WeeklyReport(Base):
+    __tablename__ = "weekly_reports"
+    __table_args__ = (UniqueConstraint("week_start", "revision", name="uq_weekly_reports_week_revision"),)
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    week_start: Mapped[date] = mapped_column(Date)
+    revision: Mapped[int] = mapped_column(Integer)
+    definition_version: Mapped[str] = mapped_column(String(24))
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    metrics_json: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WeeklyDelivery(Base):
+    __tablename__ = "weekly_deliveries"
+    __table_args__ = (
+        UniqueConstraint("report_id", "group_key", name="uq_weekly_deliveries_report_group"),
+        CheckConstraint("status IN ('queued','sending','sent','failed','unknown')", name="status"),
+        Index("ix_weekly_deliveries_ready", "status", "available_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    report_id: Mapped[UUID] = mapped_column(ForeignKey("business.weekly_reports.id"))
+    group_key: Mapped[str] = mapped_column(String(64))
+    mode: Mapped[str] = mapped_column(String(12))
+    status: Mapped[str] = mapped_column(String(12), default="queued")
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    available_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    receipt: Mapped[str | None] = mapped_column(String(100))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class KnowledgeGap(Base):
+    __tablename__ = "quality_knowledge_gaps"
+    __table_args__ = (
+        UniqueConstraint("assessment_id", "rule_id", name="uq_quality_gaps_assessment_rule"),
+        CheckConstraint("status IN ('pending','confirmed','dismissed')", name="status"),
+    )
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    assessment_id: Mapped[UUID] = mapped_column(ForeignKey("business.quality_assessments.id"))
+    rule_id: Mapped[str] = mapped_column(String(40))
+    actor_id: Mapped[UUID] = mapped_column(ForeignKey("business.app_users.id"))
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    evidence_json: Mapped[dict] = mapped_column(JSONB)
+    resolution_json: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

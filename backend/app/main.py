@@ -14,6 +14,7 @@ from app.api.support_routes import router as support_router
 from app.api.workflow_routes import router as workflow_router
 from app.api.knowledge_routes import router as knowledge_router
 from app.api.quality_routes import router as quality_router
+from app.api.report_routes import router as report_router
 from app.config import get_settings
 from app.repositories.models import SCHEMA_VERSION
 
@@ -45,6 +46,7 @@ app.include_router(support_router)
 app.include_router(channel_router)
 app.include_router(knowledge_router)
 app.include_router(quality_router)
+app.include_router(report_router)
 install_error_handlers(app)
 
 

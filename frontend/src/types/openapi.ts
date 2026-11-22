@@ -754,6 +754,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/reports/weekly": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reports */
+        get: operations["list_reports_api_v1_reports_weekly_get"];
+        put?: never;
+        /** Generate */
+        post: operations["generate_api_v1_reports_weekly_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/weekly/{report_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Detail */
+        get: operations["detail_api_v1_reports_weekly__report_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/reports/weekly/{report_id}/delivery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enqueue */
+        post: operations["enqueue_api_v1_reports_weekly__report_id__delivery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/quality/assessments/{assessment_id}/knowledge-gap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit Gap */
+        post: operations["submit_gap_api_v1_quality_assessments__assessment_id__knowledge_gap_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-gaps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Gaps */
+        get: operations["list_gaps_api_v1_knowledge_gaps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-gaps/{gap_id}/decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resolve Gap */
+        post: operations["resolve_gap_api_v1_knowledge_gaps__gap_id__decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -922,6 +1025,18 @@ export interface components {
             outcome: "resolved" | "unresolved";
             /** Verified Steps */
             verified_steps?: string | null;
+        };
+        /** DeductionCount */
+        DeductionCount: {
+            /**
+             * Rule Id
+             * @enum {string}
+             */
+            rule_id: "fatal_review" | "business_incomplete" | "process_late" | "format_missing" | "service_dismissive" | "operation_model";
+            /** Label */
+            label: string;
+            /** Count */
+            count: number;
         };
         /** DeliveryView */
         DeliveryView: {
@@ -1208,6 +1323,13 @@ export interface components {
             /** Occurred At Precision */
             occurred_at_precision?: ("minute" | "second") | null;
         };
+        /** FaultCounts */
+        FaultCounts: {
+            /** Wifi */
+            wifi: number;
+            /** Other */
+            other: number;
+        };
         /** FeedbackInput */
         FeedbackInput: {
             /**
@@ -1374,6 +1496,57 @@ export interface components {
             /** Reason */
             reason: string;
         };
+        /** KnowledgeGapDecision */
+        KnowledgeGapDecision: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "confirmed" | "dismissed";
+            /** Reason */
+            reason: string;
+        };
+        /** KnowledgeGapInput */
+        KnowledgeGapInput: {
+            /**
+             * Rule Id
+             * @enum {string}
+             */
+            rule_id: "fatal_review" | "business_incomplete" | "process_late" | "format_missing" | "service_dismissive" | "operation_model";
+            /** Statement */
+            statement: string;
+        };
+        /** KnowledgeGapView */
+        KnowledgeGapView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Assessment Id
+             * Format: uuid
+             */
+            assessment_id: string;
+            /**
+             * Rule Id
+             * @enum {string}
+             */
+            rule_id: "fatal_review" | "business_incomplete" | "process_late" | "format_missing" | "service_dismissive" | "operation_model";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "dismissed";
+            /** Evidence Json */
+            evidence_json: {
+                [key: string]: unknown;
+            };
+            /** Resolution Json */
+            resolution_json: {
+                [key: string]: unknown;
+            };
+        };
         /** LogEvidenceView */
         LogEvidenceView: {
             /** Ref */
@@ -1433,6 +1606,13 @@ export interface components {
             user: components["schemas"]["UserView"];
             /** Csrf Token */
             csrf_token: string;
+        };
+        /** MetricRatio */
+        MetricRatio: {
+            /** Count */
+            count: number;
+            /** Total */
+            total: number;
         };
         /** MockEvent */
         MockEvent: {
@@ -1565,6 +1745,19 @@ export interface components {
             selection_json: {
                 [key: string]: unknown;
             }[];
+        };
+        /** QualityCoverage */
+        QualityCoverage: {
+            /** Total */
+            total: number;
+            /** Insufficient */
+            insufficient: number;
+            /** Screened */
+            screened: number;
+            /** Ai Checked */
+            ai_checked: number;
+            /** Reviewed */
+            reviewed: number;
         };
         /** QualityDecision */
         QualityDecision: {
@@ -1765,6 +1958,11 @@ export interface components {
             /** Reason */
             reason: string;
             facts_patch?: components["schemas"]["FactsPatch"];
+        };
+        /** ReportRequest */
+        ReportRequest: {
+            /** Week Start */
+            week_start?: string | null;
         };
         /** ResumeInput */
         ResumeInput: {
@@ -2388,6 +2586,75 @@ export interface components {
             action_id: string;
             /** Expected Version */
             expected_version: number;
+        };
+        /** WeeklyDeliveryView */
+        WeeklyDeliveryView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Report Id
+             * Format: uuid
+             */
+            report_id: string;
+            /** Group Key */
+            group_key: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "mock" | "feishu";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "sending" | "sent" | "failed" | "unknown";
+            /** Attempts */
+            attempts: number;
+            /** Receipt */
+            receipt: string | null;
+        };
+        /** WeeklyMetrics */
+        WeeklyMetrics: {
+            /** Conversations */
+            conversations: number;
+            self_resolved: components["schemas"]["MetricRatio"];
+            handoff: components["schemas"]["MetricRatio"];
+            /** New Tickets */
+            new_tickets: number;
+            /** Pending Human At Cutoff */
+            pending_human_at_cutoff: number;
+            faults: components["schemas"]["FaultCounts"];
+            quality: components["schemas"]["QualityCoverage"];
+            /** Deductions */
+            deductions: components["schemas"]["DeductionCount"][];
+        };
+        /** WeeklyReportView */
+        WeeklyReportView: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Week Start
+             * Format: date
+             */
+            week_start: string;
+            /** Revision */
+            revision: number;
+            /** Definition Version */
+            definition_version: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            metrics_json: components["schemas"]["WeeklyMetrics"];
+            /** Deliveries */
+            deliveries: components["schemas"]["WeeklyDeliveryView"][];
         };
     };
     responses: never;
@@ -4000,6 +4267,233 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["QualityRuleSetInput"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reports_api_v1_reports_weekly_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyReportView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_api_v1_reports_weekly_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyReportView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detail_api_v1_reports_weekly__report_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyReportView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enqueue_api_v1_reports_weekly__report_id__delivery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                report_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyDeliveryView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_gap_api_v1_quality_assessments__assessment_id__knowledge_gap_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assessment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeGapInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeGapView"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_gaps_api_v1_knowledge_gaps_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeGapView"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resolve_gap_api_v1_knowledge_gaps__gap_id__decision_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                gap_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KnowledgeGapDecision"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KnowledgeGapView"];
                 };
             };
             /** @description Validation Error */

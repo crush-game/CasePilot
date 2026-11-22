@@ -15,6 +15,7 @@ const origin = 'http://127.0.0.1:15173'
 const environment = { ...process.env, PYTHONIOENCODING: 'utf-8' }
 const services = []
 const results = []
+const acceptanceTrace = {}
 let browser
 let activePage
 
@@ -272,6 +273,9 @@ try {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.screenshot({ path: resolve(output, 'workbench-mobile.png'), fullPage: true })
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+    const linksInViewport = await page.getByRole('navigation', { name: '主导航' }).getByRole('link')
+      .evaluateAll(links => links.every(link => link.getBoundingClientRect().right <= innerWidth))
+    assert(linksInViewport)
     await page.setViewportSize({ width: 812, height: 375 })
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
     await page.setViewportSize({ width: 1440, height: 1000 })
@@ -289,6 +293,8 @@ try {
   const support = await consumer.newPage()
   let supportTicket
   let diagnosedTicket
+  let diagnosedGap
+  let diagnosedClosureTime
   await scenario('P11 消费者追问、离线草稿与人工回执幂等', async () => {
     activePage = support
     support.on('pageerror', error => pageErrors.push(error.message))
@@ -415,6 +421,7 @@ try {
       await visible(customer.getByText('设备故障已记录，正在等待首诊。', { exact: true }))
       const ticket = fixture('support-ticket', '--ticket-no', accepted.ticket_no)
       diagnosedTicket = ticket.ticket_id
+      Object.assign(acceptanceTrace, { ticket_no: accepted.ticket_no, ticket_id: diagnosedTicket, run_id: ticket.run_id })
       assert(fixture('fault-worker', '--run-id', ticket.run_id, '--wifi-only').processed)
       await login(operator, users.business)
       activePage = operator
@@ -429,6 +436,7 @@ try {
       const queued = operator.waitForResponse(response => response.url().endsWith('/support-replies') && response.status() === 202)
       await operator.getByRole('button', { name: '将回复加入发送队列' }).click()
       const delivery = await (await queued).json()
+      acceptanceTrace.reply_delivery_id = delivery.id
       assert.equal(await customer.getByText(reply, { exact: true }).count(), 0)
       assert(fixture('delivery', '--delivery-id', delivery.id).processed)
       await customer.reload()
@@ -470,12 +478,78 @@ try {
       await reviewer.getByRole('button', { name: '查看原消息', exact: true }).first().click()
       await visible(reviewer.getByRole('status').filter({ hasText: '另外想问保修' }))
       await reviewer.getByLabel('操作依据').fill('人工已确认只回答连接问题。')
+      const finalized = reviewer.waitForResponse(response => response.url().endsWith('/decision') && response.status() === 200)
       await reviewer.getByRole('button', { name: '确认评分', exact: true }).click()
+      const assessment = await (await finalized).json()
+      diagnosedClosureTime = assessment.created_at
+      assert.equal(assessment.ticket_id, diagnosedTicket)
+      assert(assessment.snapshot_id)
+      Object.assign(acceptanceTrace, { snapshot_id: assessment.snapshot_id, assessment_id: assessment.id })
       await visible(reviewer.getByText(/已确认 · 80/).first())
+      diagnosedGap = `补充保修说明 ${diagnosedTicket}`
+      await reviewer.getByLabel('知识缺口说明').fill(diagnosedGap)
+      const submittedGap = reviewer.waitForResponse(response =>
+        response.url().endsWith('/knowledge-gap') && response.status() === 201)
+      await reviewer.getByRole('button', { name: '提交知识缺口', exact: true }).click()
+      const gap = await (await submittedGap).json()
+      assert.equal(gap.assessment_id, assessment.id)
+      acceptanceTrace.knowledge_gap_id = gap.id
+      await visible(reviewer.getByRole('status').filter({ hasText: '知识缺口已提交' }))
     } finally {
       activePage = page
       await businessContext.close()
       await reviewerContext.close()
+    }
+  })
+  await scenario('P18 同一工单的经验审阅、缺口确认与周报回执', async () => {
+    const context = await browser.newContext({ locale: 'zh-CN' })
+    const operator = activePage = await context.newPage()
+    try {
+      await login(operator, users.business)
+      assert(fixture('experience', '--ticket-id', diagnosedTicket).processed)
+      await operator.goto(`${origin}/tickets/${diagnosedTicket}`)
+      await operator.getByRole('link', { name: '查看本工单经验候选' }).click()
+      await visible(operator.getByText('重新配对后实际测试连接。', { exact: false }))
+      await operator.getByRole('button', { name: '标记已审阅' }).click()
+      await operator.getByLabel('审阅说明').fill('核验连接恢复和引用')
+      const reviewed = operator.waitForResponse(response =>
+        /\/experiences\/[^/]+\/review$/.test(response.url()) && response.status() === 200)
+      await operator.getByRole('button', { name: '确认提交', exact: true }).click()
+      const experience = await (await reviewed).json()
+      assert.equal(experience.source_ticket_id, diagnosedTicket)
+      assert.equal(experience.source_run_id, acceptanceTrace.run_id)
+      acceptanceTrace.experience_id = experience.id
+      await operator.goto(`${origin}/reports`)
+      const local = new Date(Date.parse(diagnosedClosureTime) + 8 * 60 * 60 * 1000)
+      local.setUTCDate(local.getUTCDate() - (local.getUTCDay() + 6) % 7)
+      await operator.getByLabel('统计周的周一').fill(local.toISOString().slice(0, 10))
+      const generated = operator.waitForResponse(response => response.url().endsWith('/reports/weekly') &&
+        response.request().method() === 'POST')
+      await operator.getByRole('button', { name: '生成或重算周报' }).click()
+      const reportResponse = await generated
+      assert.equal(reportResponse.status(), 200)
+      const report = await reportResponse.json()
+      assert(report.metrics_json.quality.reviewed >= 1)
+      await visible(operator.getByText(/未回答客户提出的问题 · \d+ 次/))
+      const queued = operator.waitForResponse(response => response.url().endsWith('/delivery') && response.status() === 202)
+      await operator.getByRole('button', { name: '安排群报投递' }).click()
+      const delivery = await (await queued).json()
+      assert.equal(delivery.mode, 'mock')
+      Object.assign(acceptanceTrace, { report_id: report.id, report_delivery_id: delivery.id })
+      assert(fixture('weekly-delivery', '--delivery-id', delivery.id).processed)
+      await operator.reload()
+      await visible(operator.getByText(/模拟 · 已接收/))
+      await page.getByRole('navigation', { name: '主导航' }).getByText('知识缺口', { exact: true }).click()
+      const gap = page.locator('section').filter({ hasText: diagnosedGap })
+      await visible(gap.getByRole('heading', { name: '待核对' }))
+      await gap.getByText('查看相关会话摘录', { exact: true }).click()
+      await visible(gap.getByText(/另外想问保修/).first())
+      await gap.getByLabel('核对依据').fill('确有保修说明缺口。')
+      await gap.getByRole('button', { name: '确认缺口', exact: true }).click()
+      await visible(gap.getByRole('heading', { name: '已确认' }))
+    } finally {
+      activePage = page
+      await context.close()
     }
   })
   await scenario('P13 发布后按范围找回历史案例并验证撤回', async () => {
@@ -517,7 +591,7 @@ try {
     await business.close()
   })
   assert.deepEqual(pageErrors, [], '浏览器出现未捕获脚本错误')
-  writeFileSync(resolve(output, 'e2e-report.json'), JSON.stringify({ passed: results.length, results }, null, 2))
+  writeFileSync(resolve(output, 'e2e-report.json'), JSON.stringify({ passed: results.length, results, acceptanceTrace }, null, 2))
   console.log(`浏览器验收通过：${results.length} 个场景。`)
 } catch (error) {
   if (activePage) await activePage.screenshot({ path: resolve(output, 'failure.png'), fullPage: true }).catch(() => {})
